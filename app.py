@@ -26,11 +26,11 @@ pd.options.display.max_columns = None
 for p in [plotly, dash, jd, dcc, html, dbc, pd, np]:
     print(f'{p.__name__:-<30}v{p.__version__}')
 
-clients=pd.read_excel('clients_defects.xlsx')
+clients=pd.read_excel('/clientdefects/xlsx')
 clients["Product name"]=clients["Product"]
 clients["client"]=clients["Client"]
 
-client_focus_list=pd.read_csv('client_focus_list.csv')
+client_focus_list=pd.read_csv('/clientfocuslist/csv')
 
 DASH_URL_BASE_PATHNAME = "/dashboard/"
 
