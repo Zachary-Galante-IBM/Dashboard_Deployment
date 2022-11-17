@@ -5,7 +5,7 @@ COPY . .
 
 RUN pip3 --no-cache-dir install -r requirements.txt
 
-EXPOSE 5000
+EXPOSE 8050
 
 ENTRYPOINT ["python3"]
 CMD ["app.py"]

@@ -1,2 +1,7 @@
 flask
 requests
+dash
+pandas
+jupyter_dash
+dash_bootstrap_components
+openpyxl
