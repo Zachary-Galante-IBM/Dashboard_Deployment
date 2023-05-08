@@ -39,9 +39,9 @@ class AppIDAuthProviderDash(AppIDAuthProvider):
                     return [html.Div(children = [dcc.Link("Log in", href = "/startauth", refresh = True)],
                                      style = {"textAlign": "center", "font-size": "30px"})]
             else:
-                #if not cls._user_has_a_role():
-                    #return [html.Div(children = "Unauthorized!",
-                                     #style = {"textAlign": "center", "font-size": "20px", "color": "red"})]
-                #else:
-                return func(*args, **kwargs)
+                if not cls._user_has_a_role():
+                    return [html.Div(children = "Unauthorized!",
+                                     style = {"textAlign": "center", "font-size": "20px", "color": "red"})]
+                else:
+                    return func(*args, **kwargs)
         return wrapper_check
