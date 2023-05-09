@@ -69,6 +69,22 @@ client_defects_data = client_defects['Body'].read()
 with open('clients_defects.csv','wb') as file:
     file.write(client_defects_data)
 clients = pd.read_csv('clients_defects.csv')
+# get the dictionaries and write them to JSON files
+red = get_item('oidash-app','red.json')
+red = red['Body'].read()
+with open('red.json','wb') as file:
+    file.write(red)
+orange = get_item('oidash-app','orange.json')
+orange = orange['Body'].read()
+with open('orange.json','wb') as file:
+    file.write(orange)
+green = get_item('oidash-app','green.json')
+green = green['Body'].read()
+with open('green.json','wb') as file:
+    file.write(green)
+
+
+
 clients["Product name"]=clients["Product Name"]
 clients["Product"]=clients["Product Name"]
 clients["client"]=clients["Client"]
@@ -108,6 +124,7 @@ def calc_color(x):
     ---------------------------------------------------------------------------------"""
     prod_string=x["Product Name"]
     version=str(x['Product Version'])
+    # for instances where the product name is the EXACT same 
     if prod_string in red and version in red[prod_string]:#if product in red and version in red
         return "red"
     elif prod_string in orange and version in orange[prod_string]:#if product in orange and version in orange
@@ -116,23 +133,41 @@ def calc_color(x):
         return "green"
     elif version == None or version == " " or version == "" or version == "NaN" or version == "nan":
         return "blue"
-    else:#if exact product name not found, check if products exist in string
-        for oname in orange:#check every item from orange
-            if prod_string in oname and version in orange[oname]:#if string contains a product
+    #if exact product name not found, check if products exist in string. Ex: 'MQ' in 'IBM MQ'
+    else:
+        # go through all product names in all dictionaries to see if it is part of a string
+        orange_products = []
+        for oname in orange:
+            if prod_string in oname:
+                orange_products.append(oname)
+        if len(orange_products) > 0:
+            shortest_name = min(orange_products)
+            if prod_string in shortest_name and version in orange[shortest_name]:#if string contains a product
                 return "orange"
-            elif prod_string in oname and version[:-1] + 'x' in orange[oname]:
+            elif prod_string in shortest_name and version[:-1] + 'x' in orange[shortest_name]:
                 return "orange"    
-            elif prod_string in oname and re.sub(r"\.[^\.]*$","",version)+ '.x' in orange[oname]:
+            elif prod_string in shortest_name and re.sub(r"\.[^\.]*$","",version)+ '.x' in orange[shortest_name]:
                 return "orange"    
+        red_products = []
         for rname in red:
-            if prod_string in rname and version in str(red[rname]):
+            if prod_string in rname:
+                red_products.append(rname)
+        # gets the shortest name that contains the name of the IBM product 
+        if len(red_products) > 0:
+            shortest_name = min(red_products)
+            if prod_string in shortest_name and version in str(red[shortest_name]):
                 return "red"
-            elif prod_string in rname and re.sub(r"\.[^\.]*$","",version)+ '.x' in red[rname]:
-                return "red"    
+            elif prod_string in shortest_name and re.sub(r"\.[^\.]*$","",version)+ '.x' in red[shortest_name]:
+                return "red"
+        green_products = []    
         for gname in green:
-            if prod_string in gname and version in green[gname]:
+            if prod_string in gname:
+                green_products.append(gname)
+        if len(green_products) > 0:
+            shortest_name = min(green_products)
+            if prod_string in gname and version in green[shortest_name]:
                 return "green"
-            elif prod_string in gname and re.sub(r"\.[^\.]*$","",version)+ '.x' in green[gname]:
+            elif prod_string in gname and re.sub(r"\.[^\.]*$","",version)+ '.x' in green[shortest_name]:
                 return "green"    
 
         return "blue"  
