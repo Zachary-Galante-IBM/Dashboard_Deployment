@@ -372,7 +372,7 @@ def update_graph2(selected_client, click, versions_button):
     products = np.unique(filtered_clients['Product Name'])
     for product in products:
         product_df = filtered_clients[filtered_clients['Product Name'] == product]
-        summary_new = summary_new.append(update_color(product_df))
+        summary_new = pd.concat([summary_new, update_color(product_df)])
     # changes all remaining blues to green
     summary_new.replace({'color' : {'blue' : 'green'}}, inplace = True )
     filtered_clients = summary_new
