@@ -111,6 +111,26 @@ with open('green.json', 'r') as f:
   green = json.load(f)
 f.close()
 
+# changing how some specific products are represented in the dictionary 
+if 'PowerVM VIOS Express Edition' in list(red.keys()):
+    red['PowerVM / VIOS'] = red['PowerVM VIOS Express Edition'] 
+    del red['PowerVM VIOS Express Edition']
+if 'PowerVM VIOS Express Edition' in list(green.keys()):
+    green['PowerVM / VIOS'] = green['PowerVM VIOS Express Edition'] 
+    del green['PowerVM VIOS Express Edition']
+if 'PowerVM VIOS Express Edition' in list(orange.keys()):
+    orange['PowerVM / VIOS'] = orange['PowerVM VIOS Express Edition'] 
+    del orange['PowerVM VIOS Express Edition']
+if 'IBM QRadar' in list(red.keys()):
+    red['IBM QRadar on Cloud'] = red['IBM QRadar'] 
+    del red['IBM QRadar']
+if 'IBM QRadar' in list(green.keys()):
+    green['IBM QRadar on Cloud'] = green['IBM QRadar'] 
+    del green['IBM QRadar']
+if 'IBM QRadar' in list(orange.keys()):
+    orange['IBM QRadar on Cloud'] = orange['IBM QRadar'] 
+    del orange['IBM QRadar']
+
 
 #==========================================================================================================================================
 #Functions
@@ -141,36 +161,69 @@ def calc_color(x):
             if prod_string in oname:
                 orange_products.append(oname)
         if len(orange_products) > 0:
-            shortest_name = min(orange_products)
+            shortest_name = detect_shortest_string(orange_products, prod_string)
             if prod_string in shortest_name and version in orange[shortest_name]:#if string contains a product
                 return "orange"
             elif prod_string in shortest_name and version[:-1] + 'x' in orange[shortest_name]:
                 return "orange"    
             elif prod_string in shortest_name and re.sub(r"\.[^\.]*$","",version)+ '.x' in orange[shortest_name]:
-                return "orange"    
+                return "orange"
+            for i in orange[shortest_name]:
+                if 'x' in i:
+                    # checks if there is any numerical version
+                    prod_name = i.replace('x', '[0-9]+')
+                    if re.search(prod_name, version):
+                        return "orange"
+                    elif version == i.replace('.x', ''):
+                        return "orange" 
         red_products = []
         for rname in red:
             if prod_string in rname:
                 red_products.append(rname)
         # gets the shortest name that contains the name of the IBM product 
         if len(red_products) > 0:
-            shortest_name = min(red_products)
+            shortest_name = detect_shortest_string(red_products, prod_string)
             if prod_string in shortest_name and version in str(red[shortest_name]):
                 return "red"
             elif prod_string in shortest_name and re.sub(r"\.[^\.]*$","",version)+ '.x' in red[shortest_name]:
                 return "red"
+            for i in red[shortest_name]:
+                if 'x' in i:
+                    # checks if there is any numerical version
+                    prod_name = i.replace('x', '[0-9]+')
+                    if re.search(prod_name, version):
+                        return "red"
+                    elif version == i.replace('.x', ''):
+                        return "red" 
         green_products = []    
         for gname in green:
             if prod_string in gname:
                 green_products.append(gname)
         if len(green_products) > 0:
-            shortest_name = min(green_products)
+            shortest_name = detect_shortest_string(green_products, prod_string)
             if prod_string in gname and version in green[shortest_name]:
                 return "green"
             elif prod_string in gname and re.sub(r"\.[^\.]*$","",version)+ '.x' in green[shortest_name]:
-                return "green"    
+                return "green"
+            for i in green[shortest_name]:
+                if 'x' in i:
+                    # checks if there is any numerical version
+                    prod_name = i.replace('x', '[0-9]+')
+                    if re.search(prod_name, version):
+                        return "green"
+                    elif version == i.replace('.x', ''):
+                        return "green"     
 
-        return "blue"  
+    return "blue" 
+def detect_shortest_string(LIST,prod_string):
+    best_match = 0
+    loc = None
+    for index, string in enumerate(LIST):
+        percent_match = len(prod_string) / len(string)
+        if percent_match > best_match:
+            best_match = percent_match
+            loc = index
+    return LIST[loc]
 
 def clean_versions(txt):
     """---------------------------------------------------------------------------------
@@ -366,7 +419,9 @@ def update_graph2(selected_client, click, versions_button):
     """
     #Filter data
     filtered_clients = client_focus_list[client_focus_list['client'] == selected_client]
+    filtered_clients['Product Version'] = filtered_clients['Product Version'].apply(clean_versions)
     filtered_clients['color'] = filtered_clients.apply(calc_color,axis=1).tolist()#find color/support status
+    
 
     summary_new = pd.DataFrame()
     products = np.unique(filtered_clients['Product Name'])
@@ -375,6 +430,17 @@ def update_graph2(selected_client, click, versions_button):
         summary_new = pd.concat([summary_new, update_color(product_df)])
     # changes all remaining blues to green
     summary_new.replace({'color' : {'blue' : 'green'}}, inplace = True )
+    current_products = set(summary_new['Product Name'])
+    graph1_data = clients[clients['client'] == selected_client]
+    graph1_products = set(graph1_data['Product Name'])
+    missing_products = list(graph1_products.difference(current_products))
+    if len(missing_products) > 0:
+        new_data = []
+        for missing_product in missing_products:
+            new_data.append([selected_client, missing_product, 'N/A Version', 1, 1, 'blue', 'blue'])
+        missing_product_data = pd.DataFrame(new_data, columns = list(summary_new.columns))
+        summary_new = pd.concat([summary_new, missing_product_data])
+
     filtered_clients = summary_new
 
     #seperate into traces by EOS status
@@ -647,7 +713,7 @@ def update_output(selected_client):
 #HTML Layout
 
 FA_icon = html.I(className="fa-solid fa-cloud-arrow-down me-2")
-subtitle = 'Past 12 Months as of ' + date_today
+subtitle = 'Past 12 Months as of March 31 2023'
 
 app.layout = html.Div([
     html.Div(id = "page-content"),
