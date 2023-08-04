@@ -43,14 +43,21 @@ def get_item(bucket_name, item_name):
     except Exception as e:
         print("Unable to retrieve file contents: {0}".format(e))
     return file
+
+
+
+
+
 # getting the contents of the file from the COS
-client_data = get_item('oidash-app','client_focus_list.csv')
+client_data = get_item('oidash-app','graph2_data_june_23.csv')
 client_data = client_data['Body'].read()
 # writing to a csv and then loading into a pandas DataFrame
 with open('client_focus_list.csv','wb') as file:
     file.write(client_data)
 client_focus_list = pd.read_csv('client_focus_list.csv')
-client_defects = get_item('oidash-app','clients_defects.csv')
+
+
+client_defects = get_item('oidash-app','clients_defects_june_23.csv')
 client_defects_data = client_defects['Body'].read()
 with open('clients_defects.csv','wb') as file:
     file.write(client_defects_data)
@@ -70,9 +77,14 @@ green = green['Body'].read()
 with open('green.json','wb') as file:
     file.write(green)
 
-clients = pd.read_csv('clients_defects_june_23.csv')
+
+#clients = pd.read_csv('clients_defects_june_23.csv')
+
 clients.drop(columns = clients.columns[0], inplace = True)
-client_focus_list = pd.read_csv('graph2_data_june_23.csv')
+
+
+
+#client_focus_list = pd.read_csv('graph2_data_june_23.csv')
 client_focus_list.drop(columns = client_focus_list.columns[0], inplace = True)
 client_focus_list.drop(columns = ['c_color'], inplace = True)
 
@@ -821,7 +833,7 @@ def update_output(selected_client):
 #HTML Layout
 
 FA_icon = html.I(className="fa-solid fa-cloud-arrow-down me-2")
-subtitle = 'Data from November 2021 through June 2023'
+subtitle = 'Data from March 2022 through June 2023'
 disclaimer = 'Disclaimer: Products without version information may appear in graphs 1 and 3, but not graph 2'
 app.layout = html.Div([
     html.Div(id = "page-content"),
