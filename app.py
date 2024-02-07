@@ -3,22 +3,27 @@ import dash
 from dash import Dash, html, Input, Output, ctx,dcc
 from dash.dependencies import Output, Input
 import dash_bootstrap_components as dbc
+from natsort import natsort_keygen
 import plotly
 import plotly.graph_objects as go
 import jupyter_dash as jd
 import pandas as pd
 pd.options.mode.chained_assignment = None
 pd.options.display.max_columns = None
-import numpy as np
-import re
-from datetime import date
-import os
-import json
-from auth_dash import AppIDAuthProviderDash
 import ibm_boto3
 from ibm_botocore.client import Config, ClientError
+import numpy as np
+
+from datetime import date, timedelta
 date_today = date.today().strftime("%m/%d/%Y")
+import calendar
+import os
 cwd = os.getcwd()
+import json
+import re
+from auth_dash import AppIDAuthProviderDash
+import datetime
+
 #import client data
 #setting up the API with the COS
 # Constants for IBM COS values
@@ -44,24 +49,25 @@ def get_item(bucket_name, item_name):
         print("Unable to retrieve file contents: {0}".format(e))
     return file
 
-
-
-
-
+######### FOR CLOUD DEPLOYMENT ########
 # getting the contents of the file from the COS
-client_data = get_item('oidash-app','graph2_data_june_23.csv')
+client_data = get_item('oidash-app','All_2023_data.csv')
 client_data = client_data['Body'].read()
 # writing to a csv and then loading into a pandas DataFrame
-with open('client_focus_list.csv','wb') as file:
+with open('All_2023_data.csv','wb') as file:
     file.write(client_data)
-client_focus_list = pd.read_csv('client_focus_list.csv')
+######################################## """
 
 
-client_defects = get_item('oidash-app','clients_defects_june_23.csv')
-client_defects_data = client_defects['Body'].read()
-with open('clients_defects.csv','wb') as file:
-    file.write(client_defects_data)
-clients = pd.read_csv('clients_defects.csv')
+
+#client_focus_list = pd.read_csv('Graph2_All_Data_23.csv') # for graph 2 
+#clients = pd.read_csv('Graphs1_3_All_23.csv') # for graphs 1 and 3 
+    
+
+all_data = pd.read_csv('All_2023_data.csv')
+all_data['Date'] = pd.to_datetime(all_data['Month'])
+earliest_date = all_data['Date'].min() # earliest date 
+most_recent_date = all_data['Date'].max() # the most recent date 
 
 # get the dictionaries and write them to JSON files
 red = get_item('oidash-app','red.json')
@@ -80,18 +86,17 @@ with open('green.json','wb') as file:
 
 #clients = pd.read_csv('clients_defects_june_23.csv')
 
-clients.drop(columns = clients.columns[0], inplace = True)
-
+#clients.drop(columns = clients.columns[0], inplace = True)
 
 
 #client_focus_list = pd.read_csv('graph2_data_june_23.csv')
-client_focus_list.drop(columns = client_focus_list.columns[0], inplace = True)
-client_focus_list.drop(columns = ['c_color'], inplace = True)
+#client_focus_list.drop(columns = client_focus_list.columns[0], inplace = True)
+#client_focus_list.drop(columns = ['c_color'], inplace = True)
 
 # changing some column names for uniformity
-clients["Product name"]=clients["Product Name"]
-clients["Product"]=clients["Product Name"]
-clients["client"]=clients["Client"]
+#clients["Product name"]=clients["Product Name"]
+#clients["Product"]=clients["Product Name"]
+#clients["client"]=clients["Client"]
 DASH_URL_BASE_PATHNAME = "/dashboard/"
 auth = AppIDAuthProviderDash(DASH_URL_BASE_PATHNAME)
 app = dash.Dash(__name__, server = auth.flask, url_base_pathname = DASH_URL_BASE_PATHNAME, external_stylesheets=[dbc.themes.MINTY, dbc.icons.FONT_AWESOME])
@@ -402,10 +407,127 @@ def update_color(df):
     if red_index:
         df['color'][red_index:] = 'red'  
     return df
+
+
+def string_replace(summary):
+#---------------------------------------------------------------------------------
+#Description:Function used in association with graph 2 to clean df data
+#Parameters: summary (pandas df) - df element containing columns 'Product Name' and 'Product Version'
+#Return: Summary (pandas df) - clean df of user input
+#---------------------------------------------------------------------------------
+    nine = ['91','91942','v9942','9942','92951','88'] #strings to replace with character '9'
+    for word in nine:
+        summary["Product Version"]=summary["Product Version"].str.replace(word, '9')
+    #strings to replace with blank character
+    blank = ["other","Other","Spectrum Scale Extended Edition","Spectrum Scale Extended Support","Spectrum Scale Standard Edition",
+            "C:D ","v","00","\(.*\)$","\[.*\]$", "Not Sure", "Unknown", " ", '-',':5/','[a-zA-Z]*','\([^()]*\)','\[[^()]*\]','20220430']
+    for word in blank:
+        summary["Product Version"]=summary["Product Version"].str.replace(word, '')
+    summary["Product Version"]=summary["Product Version"].str.replace('Windows', 'Win')
+    summary["Product Version"]=summary["Product Version"].str.replace('Liberty', 'Lib')
+    summary["Product Version"]=summary["Product Version"].str.replace('1011010', '10')
+    
+    return summary
+
+def graph_data_prep(selected_client, data, graph_num,  start_interval = None):
+    from natsort import natsort_keygen
+    """
+    Processes data used to populate graphs used 
+    
+    Keyword Arguments:
+    selected_client -- The name of the client selected
+    data -- The dataset passed in. This should be the raw data from EPM
+    graph_num -- The graph number that the data will be used for (1,2 or 3)
+    start_interval -- Start interval of how far back to look for data (default None)
+    
+    Returns:
+    client_defects_data -- DataFrame with case info describing the severity level and type of question
+    
+    """
+    filtered_data_by_client = data[data['Global Buying Group Name'] == selected_client]
+    filtered_data_by_client['Date'] = pd.to_datetime(filtered_data_by_client['Month'])
+    latest_date = filtered_data_by_client['Date'].max() # the most recent date 
+    # filtering based off input from the buttons
+    if start_interval:
+        start_date = latest_date - start_interval
+        data_filtered_by_date = filtered_data_by_client[(filtered_data_by_client['Date'] <= latest_date) & (filtered_data_by_client['Date'] >= start_date)]
+    else:
+        data_filtered_by_date = filtered_data_by_client
+    data_filtered_by_date['Initial Severity'] = data_filtered_by_date['Initial Severity'].astype(float).astype(int)
+
+        
+    if (graph_num == 1) or (graph_num == 3): # processes the data to be used for the 1st and 3rd graphs 
+        # now can start processing data 
+        tickets_by_sev =data_filtered_by_date.groupby(['Global Buying Group Name','Product Name', 'Initial Severity']).size().unstack(fill_value=0).reset_index(level=[0,1])
+        present_sevs = list(tickets_by_sev.columns)[2:]
+
+        # adding tickets together to get a total 
+        tickets_by_sev['total'] = tickets_by_sev[present_sevs].sum(axis = 1)
+        for column in present_sevs:
+            tickets_by_sev[f'Sev{int(float(column))}'] = tickets_by_sev[column]
+        present_cols = list(tickets_by_sev.columns)
+        desired_cols = ['Global Buying Group Name', 'Product Name', 'total', 'Sev1', 'Sev2', 'Sev3', 'Sev4', 'Defects', 'How To']
+        cols_to_drop = []
+        for column_name in present_cols:
+            if column_name not in desired_cols:
+                cols_to_drop.append(column_name)
+        if len(cols_to_drop) > 0:
+            tickets_by_sev.drop(columns = cols_to_drop, inplace = True )
+
+        # getting data on defects by product 
+        defects_data = data_filtered_by_date.groupby(['Global Buying Group Name','Product Name', 'Is Defect']).size().unstack(fill_value=0).reset_index(level=[0,1])
+
+        # merging the two DataFrames together to get complete data 
+        client_defects_data = pd.merge(tickets_by_sev, defects_data,  how='left', left_on=['Global Buying Group Name','Product Name'],
+                               right_on = ['Global Buying Group Name','Product Name'])
+        if 1 in list(client_defects_data.columns):
+            client_defects_data["Defects"]=client_defects_data[1]
+        if 0 in list(defects_data.columns):
+            client_defects_data["How To"]=client_defects_data[0]
+
+        client_defects_data.rename(columns = {'Global Buying Group Name' : 'Client', 'Product' : 'Product Name'})
+
+        sev_levels = ['Sev1', 'Sev2', 'Sev3', 'Sev4', 'Defects', 'How To']
+        current_sevs = list(client_defects_data.columns)
+        missing_sevs = np.setdiff1d(sev_levels, current_sevs)
+        sevs_to_add = list(missing_sevs)
+        for sev in sevs_to_add:
+            client_defects_data[sev] = [0] * len(client_defects_data)
+    
+    if graph_num == 2: #processes the data needed for graph 2 
+        filtered_by_date_cleaned = string_replace(data_filtered_by_date)
+        filtered_by_date_sub = filtered_by_date_cleaned[["Year","Month","Case Number","Product Version","Product Name","Initial Severity","Parent Id","Is Defect","Defect Number","Customer Name","Customer Id","Global Buying Group Name","Parent Case Number"]]
+        filtered_by_date_sub= filtered_by_date_sub[filtered_by_date_sub['Parent Case Number'].isnull()]
+        filtered_by_date_sub['Initial Severity']=filtered_by_date_sub['Initial Severity'].astype(str).str.replace('.0', '', regex=False)
+        filtered_by_date_sub.loc[filtered_by_date_sub["Product Name"].str.contains("InfoSphere Information Server"), "Product Name"] = 'IBM InfoSphere Information Server'
+        filtered_by_date_sub.loc[filtered_by_date_sub["Product Name"].str.contains("Hortonworks Data Platform for IBM"), "Product Name"] = 'Hortonworks Data Platform'
+        filtered_by_date_sub['color'] = filtered_by_date_sub.apply(calc_color,axis=1).tolist()#find color/support status
+        
+        # product name and version grouped 
+        product_info_grouped = filtered_by_date_sub.groupby(['Global Buying Group Name','Product Name','Product Version']).size().reset_index(name='counts')
+        
+        # sort by product version 
+        product_info_grouped.sort_values(['Global Buying Group Name','Product Name','Product Version'], ascending=[True,True,False], inplace=True, na_position='last', 
+                    ignore_index=False, key=natsort_keygen())
+        
+        color = ['blue'] * len(product_info_grouped)
+        product_info_grouped['c_color'] = color
+        version_nums = product_info_grouped.groupby(['Global Buying Group Name','Product Name']).cumcount()+1
+        product_info_grouped['version_number'] = version_nums
+
+        product_info_grouped = product_info_grouped.rename(columns = {'Global Buying Group Name' : 'client'})
+        product_info_grouped['color'] = product_info_grouped.apply(calc_color,axis=1).tolist()#find color/support status
+
+        
+        client_defects_data = product_info_grouped
+
+    
+    return client_defects_data        
+
 #==========================================================================================================================================
 #graph creation
 
-geo_dropdown = dcc.Dropdown(options=clients['client'].unique(),value='METLIFE')
+geo_dropdown = dcc.Dropdown(options=all_data['Global Buying Group Name'].unique(),value='METLIFE')
 
 global legend1#keep track of which items in legend are selected upon update for graph 1
 legend1 = [True,True,True,True]
@@ -419,12 +541,16 @@ legend3 = [True,True]
 
 @app.callback(
     Output(component_id='graph-one', component_property='figure'),
+    #Output(component_id= 'date_label', component_property= 'value'),
     Input(component_id=geo_dropdown, component_property='value'),
     Input('graph-one', 'restyleData'),#user input to detect interaction of legend
     Input('Sort-1', 'n_clicks'),
-    Input('Totals-1', 'n_clicks')
+    Input('Totals-1', 'n_clicks'),
+    Input('button_6months', 'n_clicks'), # buttons to represent the date range
+    Input('button4_3months', 'n_clicks'),
+    Input('button_1year', 'n_clicks')
 )
-def update_graph1(selected_client, click, sort_button, totals_button):
+def update_graph1(selected_client, click, sort_button, totals_button, button_6months,  button_1year, button4_3months):
     """
     returns a bar graph of product open tickets and their severity
     for selected client represented by values 1-4
@@ -437,35 +563,57 @@ def update_graph1(selected_client, click, sort_button, totals_button):
             legend1[num] = True
         else: legend1[num] = vis
 
-    #filter client data by dropdown
-    filtered_clients = clients[clients['client'] == selected_client]
-    filtered_clients["Sev"] = filtered_clients["Sev1"].astype(str)
-    filtered_clients["totals"]=filtered_clients["Sev1"].fillna(0)+filtered_clients["Sev2"].fillna(0)+filtered_clients["Sev3"].fillna(0)+filtered_clients["Sev4"].fillna(0).round(0)
-    html_totals = filtered_clients["totals"]
+    # logic for the date buttons and filters data accordingly
+    # gets all data in the specified date range
+    interval_start = None
+    if 'button_6months' == ctx.triggered_id:
+        interval_start = timedelta(days = 182) # data for last 6 months 
+    elif 'button_1year' == ctx.triggered_id:
+        interval_start = timedelta(days = 365) # data for last 1 year 
+    elif 'button4_3months' == ctx.triggered_id:
+        interval_start = timedelta(days = 91) # data for the last 3 months 
+    else:
+        interval_start = None 
+
+    # get the most recent date for the graph label 
+    ##if most_recent_date.month ==  12:
+      #  most_recent_month = 1
+    end_date_month = calendar.month_name[most_recent_date.month]
+    if interval_start:
+        start_date = most_recent_date  - interval_start
+        start_month = calendar.month_name[start_date.month ] 
+        date_label = f'from {start_month} {start_date.year} to {end_date_month} {most_recent_date.year}'
+    else:
+        earliest_month = calendar.month_name[earliest_date.month ] 
+        date_label = f'from {earliest_month} {earliest_date.year} to {end_date_month} {most_recent_date.year}'
+
+    graph1_processed_data = graph_data_prep(selected_client= selected_client, data = all_data, graph_num = 1, start_interval=interval_start)
 
     #create custom annotations based on legend status
     first = True
     for i in range(len(legend1)):
         val = str(i+1)
         if legend1[i] == True and first == True:
-            totals = filtered_clients["Sev" + val].fillna(0)
+            totals = graph1_processed_data["Sev" + val].fillna(0)
             first = False
         elif legend1[i] == True:
-            totals = totals + filtered_clients["Sev"+val].fillna(0)
+            totals = totals + graph1_processed_data["Sev"+val].fillna(0)
 
     #create base graph
-    x=filtered_clients['Product']
+    x= graph1_processed_data['Product Name']
+
+    html_totals = graph1_processed_data["total"]
 
     fig1 = go.Figure()
     for i in range(1,5):
-        fig1.add_trace(go.Bar(x=x, y=filtered_clients['Sev' + str(i)], name='Severity ' + str(i),text=filtered_clients['Sev' + str(i)],textposition='inside'))
+        fig1.add_trace(go.Bar(x=x, y=graph1_processed_data['Sev' + str(i)], name='Severity ' + str(i),text= graph1_processed_data['Sev' + str(i)],textposition='inside'))
     #graph adjustments
     fig1.update_layout(
         barmode='stack', xaxis={'categoryorder': 'category ascending'},
         height=800, width =800 + 13*len(x),
         legend=dict(yanchor="top", y=1, xanchor="left", x=0, orientation="h", traceorder='normal'),
-        title={#only for html download
-            'text': 'Open Tickets by Severity for Summary of ' + selected_client,
+        title={# Only appears for the HTML download
+            'text': f'Proportion of Defects to Case Activity by Product for Summary of {selected_client} {date_label}',
             'y':0.97,
             'x':0,
             'xanchor': 'left',
@@ -522,11 +670,14 @@ def update_graph1(selected_client, click, sort_button, totals_button):
 
 @app.callback(
     Output(component_id='graph-two', component_property='figure'),#graph to be returned and displayed in HTML
-    Input(component_id=geo_dropdown, component_property='value'),#velaue of client selcted form dropdown
+    Input(component_id=geo_dropdown, component_property='value'),#value of client selcted form dropdown
     Input('graph-two', 'restyleData'),#user input to detect interaction of legend
     Input('Versions', 'n_clicks'),#versions button and number of clicks
+    Input('button_6months', 'n_clicks'), # buttons to represent the date range
+    Input('button4_3months', 'n_clicks'),
+    Input('button_1year', 'n_clicks')
 )
-def update_graph2(selected_client, click, versions_button):
+def update_graph2(selected_client, click, versions_button, button_6months,  button_1year, button4_3months):
     """
     Returns a scatter plot graph of open tickets based on
     ticket count and color coordinated based on End of Support
@@ -534,18 +685,19 @@ def update_graph2(selected_client, click, versions_button):
     EOS within 12 months, Red reached EOS and blue is unknown
     """
     #Filter data
-    filtered_clients = client_focus_list[client_focus_list['client'] == selected_client]
-    filtered_clients['Product Version'] = filtered_clients['Product Version'].apply(clean_versions)
-    filtered_clients.loc[filtered_clients["Product Name"].str.contains("InfoSphere Information Server"), "Product Name"] = 'IBM InfoSphere Information Server'
-    filtered_clients.loc[filtered_clients["Product Name"].str.contains("Hortonworks Data Platform for IBM"), "Product Name"] = 'Hortonworks Data Platform'
-    filtered_clients['color'] = filtered_clients.apply(calc_color,axis=1).tolist()#find color/support status
-    summary_new = pd.DataFrame()
+    #filtered_clients = client_focus_list[client_focus_list['client'] == selected_client]
+    #filtered_clients['Product Version'] = filtered_clients['Product Version'].apply(clean_versions)
+    #filtered_clients.loc[filtered_clients["Product Name"].str.contains("InfoSphere Information Server"), "Product Name"] = 'IBM InfoSphere Information Server'
+    #filtered_clients.loc[filtered_clients["Product Name"].str.contains("Hortonworks Data Platform for IBM"), "Product Name"] = 'Hortonworks Data Platform'
+    #filtered_clients['color'] = filtered_clients.apply(calc_color,axis=1).tolist()#find color/support status
+
+    """summary_new = pd.DataFrame()
     products = np.unique(filtered_clients['Product Name'])
     for product in products:
         product_df = filtered_clients[filtered_clients['Product Name'] == product]
         summary_new = pd.concat([summary_new, update_color(product_df)])
     # changes all remaining blues to green
-    #summary_new.replace({'color' : {'blue' : 'green'}}, inplace = True )
+    #summary_new.replace({'color' : {'blue' : 'green'}}, inplace = True )"""
     # *********************************************************************
     # This section was being used to imclude the missing products that are displayed in graphs 1 and 3, but not 2
     """current_products = set(summary_new['Product Name'])
@@ -563,16 +715,31 @@ def update_graph2(selected_client, click, versions_button):
 
     filtered_clients = summary_new """
 
+
+
+    interval_start = None
+    if 'button_6months' == ctx.triggered_id:
+        interval_start = timedelta(days = 182) # data for last 6 months 
+    elif 'button_1year' == ctx.triggered_id:
+        interval_start = timedelta(days = 365) # data for last 1 year 
+    elif 'button4_3months' == ctx.triggered_id:
+        interval_start = timedelta(days = 91) # data for the last 3 months  
+    else:
+        interval_start = None 
+
+
+    graph2_processed_data = graph_data_prep(selected_client= selected_client, data = all_data, graph_num = 2,  start_interval=interval_start)
+
     #seperate into traces by EOS status
     colors = {'green': 'In Support','orange':"End of Support Within 12 Months",'red': "End of Support",'blue':'N/A Version'}
     traces,prod = [],[]
 
     #create graph base
     fig2 = go.Figure()
-    filtered_clients['Product Version'] = filtered_clients['Product Version'].apply(clean_versions)
+    graph2_processed_data['Product Version'] = graph2_processed_data['Product Version'].apply(clean_versions)
     y = 0
     for color,eos in colors.items():
-        trace = (filtered_clients.loc[filtered_clients['color'] == color].reset_index())
+        trace = (graph2_processed_data.loc[graph2_processed_data['color'] == color].reset_index())
         y += len(trace["Product Name"])
         traces.append(trace)
         prod.append(trace["Product Name"].drop_duplicates())
@@ -580,7 +747,7 @@ def update_graph2(selected_client, click, versions_button):
         temp = go.Scatter(x=trace["version_number"], y=trace["Product Name"],name=eos, text=text,mode='markers')
         fig2.add_trace(temp)
 
-    counts = (filtered_clients["Product Name"].value_counts().max())
+    counts = (graph2_processed_data["Product Name"].value_counts().max())
     #update graph orientation
     fig2.update_layout(
         xaxis=dict(title='Latest Product Version to Oldest',range=(0.5,counts + 0.5)),
@@ -600,7 +767,7 @@ def update_graph2(selected_client, click, versions_button):
         fig2.data[i].marker.opacity = 0.55
         s = [10] * len(trace)
         for j in range(len(s)):
-            s[j] = 7 + trace['counts'][j]/filtered_clients['counts'].max() * 18
+            s[j] = 7 + trace['counts'][j]/graph2_processed_data['counts'].max() * 18
         fig2.data[i].marker.size = s
         i+=1
 
@@ -634,7 +801,7 @@ def update_graph2(selected_client, click, versions_button):
     #version annotations for dashboard
     version_labels = [{"x": x, "y": y, "text": clean_versions(txt), "showarrow": False, "font": {"size":10}} for x, y, txt in zip(combined_df["version_number"], combined_df["Product Name"],combined_df["Product Version"])]
     #version annotations for html download
-    html_version_labels = [{"x": x, "y": y, "text": clean_versions(txt), "showarrow": False, "font": {"size":10}} for x, y, txt in zip(filtered_clients["version_number"], filtered_clients["Product Name"],filtered_clients["Product Version"])]
+    html_version_labels = [{"x": x, "y": y, "text": clean_versions(txt), "showarrow": False, "font": {"size":10}} for x, y, txt in zip(graph2_processed_data["version_number"], graph2_processed_data["Product Name"],graph2_processed_data["Product Version"])]
 
     #buttons for html download only (turned off on dashboard)
     fig2.update_layout(
@@ -674,9 +841,12 @@ def update_graph2(selected_client, click, versions_button):
     Input(component_id=geo_dropdown, component_property='value'),#client dropdown selection
     Input('graph-three', 'restyleData'),#user input to detect interaction of legend
     Input('Sort-2', 'n_clicks'),#sort button and number of clicks
-    Input('Totals-2', 'n_clicks')#totals button and number of clicks
+    Input('Totals-2', 'n_clicks'),#totals button and number of clicks
+    Input('button_6months', 'n_clicks'), # buttons to represent the date range
+    Input('button4_3months', 'n_clicks'),
+    Input('button_1year', 'n_clicks')
 )
-def update_graph3(selected_client,click,sort_button,totals_button):
+def update_graph3(selected_client,click,sort_button,totals_button, button_6months,  button_1year, button4_3months):
     """
     Returns Bar graph of open tickets based on product count
     and categorized by Defect or How to Questions.
@@ -689,13 +859,26 @@ def update_graph3(selected_client,click,sort_button,totals_button):
             legend3[num] = True
         else: legend3[num] = vis
 
-    #filter date based on dropdown selection
-    filtered_clients = clients[clients['client'] == selected_client]
+
+
+    interval_start = None
+    if 'button_6months' == ctx.triggered_id:
+        interval_start = timedelta(days = 182) # data for last 6 months 
+    elif 'button_1year' == ctx.triggered_id:
+        interval_start = timedelta(days = 365) # data for last 1 year
+    elif 'button4_3months' == ctx.triggered_id:
+        interval_start = timedelta(days = 91) # data for the last 3 months 
+    else:
+        interval_start = None 
+
+
+    graph3_processed_data = graph_data_prep(selected_client= selected_client, data = all_data, graph_num = 1, start_interval=interval_start)
+
 
     #create base graph
-    x=filtered_clients['Product']
-    fig3 = go.Figure(go.Bar(x=x, y=filtered_clients['How To'], name='How To Questions',text=filtered_clients['How To'],textposition='inside'))
-    fig3.add_trace(go.Bar(x=x, y=filtered_clients['Defects'], name='Defects',text=filtered_clients['Defects'],textposition='inside'))
+    x=graph3_processed_data['Product Name']
+    fig3 = go.Figure(go.Bar(x=x, y=graph3_processed_data['How To'], name='How To Questions',text=graph3_processed_data['How To'],textposition='inside'))
+    fig3.add_trace(go.Bar(x=x, y=graph3_processed_data['Defects'], name='Defects',text=graph3_processed_data['Defects'],textposition='inside'))
 
     #update graph layout
     fig3.update_layout(
@@ -710,9 +893,9 @@ def update_graph3(selected_client,click,sort_button,totals_button):
             'yanchor': 'top'})
 
     #annotations for dashboard
-    filtered_clients["totals"]=filtered_clients["How To"].fillna(0)+filtered_clients["Defects"].fillna(0)
+    graph3_processed_data["totals"]=graph3_processed_data["How To"].fillna(0)+graph3_processed_data["Defects"].fillna(0)
     #annotations for html download
-    html_totals = filtered_clients["totals"]
+    html_totals = graph3_processed_data["totals"]
 
     #update legend visibility based on global variale upon reupdate
     first = True
@@ -720,10 +903,10 @@ def update_graph3(selected_client,click,sort_button,totals_button):
     for i in range(len(legend3)):
         fig3.data[i].visible = legend3[i]
         if legend3[i] == True and first == True:
-            totals = filtered_clients[options[i]].fillna(0)
+            totals = graph3_processed_data[options[i]].fillna(0)
             first = False
         elif legend3[i] == True:
-            totals = totals + filtered_clients[options[i]].fillna(0)
+            totals = totals + graph3_processed_data[options[i]].fillna(0)
 
     #totals=filtered_clients["totals"]
     html_total_labels = [{"x": x, "y": total+5, "text": blank_zero(total), "showarrow": False} for x, total in zip(x, html_totals)]
@@ -817,14 +1000,15 @@ def get_download_file(n_clicks):
     Output('title1', 'children'),
     Output('title2', 'children'),
     Output('title3', 'children'),
-    Input(component_id=geo_dropdown, component_property='value'),
+    Input(component_id=geo_dropdown, component_property='value')
+    #Input(component_id= 'date_range', component_property= 'value' )
 )
 def update_output(selected_client):
     """
     Returns strings of graph titles dependent on dropdown value.
     Used in HTML layout
     """
-    title1 = 'Open Tickets by Severity for Summary of ' + selected_client
+    title1 = 'Open Tickets by Product Version for Summary of ' + selected_client
     title2 = 'Open Tickets by Product Version for Summary of ' + selected_client
     title3 = 'Proportion of Defects to Case Activity by Product for Summary of ' + selected_client
     return title1, title2, title3
@@ -858,7 +1042,7 @@ def layout_components(n):
         ], className='six columns'),
 
     ], className='row'),
-    # New Div for all elements in the new 'row' of the page
+    # Div elements for each graph -- Each corresponds to one graph 
     html.Div([
         html.Div([
             geo_dropdown,
@@ -867,7 +1051,9 @@ def layout_components(n):
             dcc.Download(id="download-html"),
             html.Br(),html.Br(),
             html.H3(id='title1'),
-            html.H5(subtitle),
+            dbc.Button('3 Months', id = 'button4_3months', n_clicks = 0, color = 'primary', outline = True),
+            dbc.Button('6 Months', id = 'button_6months', n_clicks = 0, color = 'primary',  outline = True),
+            dbc.Button('1 Year', id = 'button_1year', n_clicks = 0, color = 'primary', outline = True),
             dbc.Button('Sort', color="success", className=("m-1"), outline=True, id='Sort-1', n_clicks=0),
             dbc.Button('Totals', color="success", className=("m-1"), outline=True, id='Totals-1', n_clicks=0),
             dcc.Graph(id='graph-one', style={'overflowX': 'scroll'}),
@@ -882,8 +1068,10 @@ def layout_components(n):
                 html.Br(),
                 html.H3(id='title2'),
                 html.H5(disclaimer),
-                html.H5(subtitle),
                 dbc.Button('Version ID', color="success", className=("m-1"), outline=True, id='Versions', n_clicks=0),
+                dbc.Button('3 Months', id = 'button4_3months', n_clicks = 0, color = 'primary', outline = True),
+                dbc.Button('6 Months', id = 'button_6months', n_clicks = 0, className = ('m-1'), color = 'success', outline = True),
+                dbc.Button('1 Year', id = 'button_1year', n_clicks = 0, className = ('m-1'), color = 'success', outline = True),
                 dcc.Graph(id='graph-two'),
         ], className='six columns'),
     ], className='row'),
@@ -892,9 +1080,11 @@ def layout_components(n):
     html.Div([
         html.Div([
                 html.H3(id='title3'),
-                html.H5(subtitle),
                 dbc.Button('Sort', color="success", className=("m-1"), outline=True, id='Sort-2', n_clicks=0),
                 dbc.Button('Totals', color="success", className=("m-1"), outline=True, id='Totals-2', n_clicks=0),
+                dbc.Button('3 Months', id = 'button4_3months', n_clicks = 0, color = 'primary', outline = True),
+                dbc.Button('6 Months', id = 'button_6months', n_clicks = 0, className = ('m-1'), color = 'success', outline = True),
+                dbc.Button('1 Year', id = 'button_1year', n_clicks = 0, className = ('m-1'), color = 'success', outline = True),
                 dcc.Graph(id='graph-three'),
 
         ], className='six columns'),
