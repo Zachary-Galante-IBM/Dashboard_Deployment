@@ -13,7 +13,6 @@ pd.options.display.max_columns = None
 import ibm_boto3
 from ibm_botocore.client import Config, ClientError
 import numpy as np
-
 from datetime import date, timedelta
 date_today = date.today().strftime("%m/%d/%Y")
 import calendar
@@ -23,7 +22,6 @@ import json
 import re
 from auth_dash import AppIDAuthProviderDash
 import datetime
-
 #import client data
 #setting up the API with the COS
 # Constants for IBM COS values
@@ -42,7 +40,6 @@ def get_item(bucket_name, item_name):
     print("Retrieving item from bucket: {0}, key: {1}".format(bucket_name, item_name))
     try:
         file = cos.Object(bucket_name, item_name).get()
-
     except ClientError as be:
         print("CLIENT ERROR: {0}\n".format(be))
     except Exception as e:
@@ -57,8 +54,6 @@ client_data = client_data['Body'].read()
 with open('All_2023_data.csv','wb') as file:
     file.write(client_data)
 ######################################## """
-
-
 
 #client_focus_list = pd.read_csv('Graph2_All_Data_23.csv') # for graph 2 
 #clients = pd.read_csv('Graphs1_3_All_23.csv') # for graphs 1 and 3 
@@ -87,8 +82,6 @@ with open('green.json','wb') as file:
 #clients = pd.read_csv('clients_defects_june_23.csv')
 
 #clients.drop(columns = clients.columns[0], inplace = True)
-
-
 #client_focus_list = pd.read_csv('graph2_data_june_23.csv')
 #client_focus_list.drop(columns = client_focus_list.columns[0], inplace = True)
 #client_focus_list.drop(columns = ['c_color'], inplace = True)
@@ -260,8 +253,6 @@ def calc_color(x):
                         if versions_split[0] == provided_versions_split[0]:
                             return 'orange'
       
-
-
         red_products = []
         for rname in red:
             if prod_string in rname:
@@ -408,7 +399,6 @@ def update_color(df):
         df['color'][red_index:] = 'red'  
     return df
 
-
 def string_replace(summary):
 #---------------------------------------------------------------------------------
 #Description:Function used in association with graph 2 to clean df data
@@ -455,7 +445,6 @@ def graph_data_prep(selected_client, data, graph_num,  start_interval = None):
         data_filtered_by_date = filtered_data_by_client
     data_filtered_by_date['Initial Severity'] = data_filtered_by_date['Initial Severity'].astype(float).astype(int)
 
-        
     if (graph_num == 1) or (graph_num == 3): # processes the data to be used for the 1st and 3rd graphs 
         # now can start processing data 
         tickets_by_sev =data_filtered_by_date.groupby(['Global Buying Group Name','Product Name', 'Initial Severity']).size().unstack(fill_value=0).reset_index(level=[0,1])
@@ -518,12 +507,9 @@ def graph_data_prep(selected_client, data, graph_num,  start_interval = None):
         product_info_grouped = product_info_grouped.rename(columns = {'Global Buying Group Name' : 'client'})
         product_info_grouped['color'] = product_info_grouped.apply(calc_color,axis=1).tolist()#find color/support status
 
-        
         client_defects_data = product_info_grouped
 
-    
     return client_defects_data        
-
 #==========================================================================================================================================
 #graph creation
 
@@ -538,6 +524,7 @@ legend2 = [True,True,True,True]
 global legend3#keep track of which items in legend are selected upon update for graph 2
 legend3 = [True,True]
 
+download_component = dcc.Download()
 
 @app.callback(
     Output(component_id='graph-one', component_property='figure'),
@@ -579,13 +566,14 @@ def update_graph1(selected_client, click, sort_button, totals_button, button_6mo
     ##if most_recent_date.month ==  12:
       #  most_recent_month = 1
     end_date_month = calendar.month_name[most_recent_date.month]
-    if interval_start:
+
+    if (interval_start!= timedelta(days = 365)) and (interval_start != None):
         start_date = most_recent_date  - interval_start
         start_month = calendar.month_name[start_date.month ] 
-        date_label = f'from {start_month} {start_date.year} to {end_date_month} {most_recent_date.year}'
+        date_label = f'{start_month} {start_date.year} through {end_date_month} {most_recent_date.year}'
     else:
         earliest_month = calendar.month_name[earliest_date.month ] 
-        date_label = f'from {earliest_month} {earliest_date.year} to {end_date_month} {most_recent_date.year}'
+        date_label = f'{earliest_month} {earliest_date.year} through {end_date_month} {most_recent_date.year}'
 
     graph1_processed_data = graph_data_prep(selected_client= selected_client, data = all_data, graph_num = 1, start_interval=interval_start)
 
@@ -613,7 +601,7 @@ def update_graph1(selected_client, click, sort_button, totals_button, button_6mo
         height=800, width =800 + 13*len(x),
         legend=dict(yanchor="top", y=1, xanchor="left", x=0, orientation="h", traceorder='normal'),
         title={# Only appears for the HTML download
-            'text': f'Proportion of Defects to Case Activity by Product for Summary of {selected_client} {date_label}',
+            'text': f'Tickets Opened by Severity for {selected_client} from {date_label}',
             'y':0.97,
             'x':0,
             'xanchor': 'left',
@@ -715,8 +703,6 @@ def update_graph2(selected_client, click, versions_button, button_6months,  butt
 
     filtered_clients = summary_new """
 
-
-
     interval_start = None
     if 'button_6months' == ctx.triggered_id:
         interval_start = timedelta(days = 182) # data for last 6 months 
@@ -726,6 +712,16 @@ def update_graph2(selected_client, click, versions_button, button_6months,  butt
         interval_start = timedelta(days = 91) # data for the last 3 months  
     else:
         interval_start = None 
+
+    end_date_month = calendar.month_name[most_recent_date.month]
+
+    if (interval_start!= timedelta(days = 365)) and (interval_start != None):
+        start_date = most_recent_date  - interval_start
+        start_month = calendar.month_name[start_date.month ] 
+        date_label = f'{start_month} {start_date.year} through {end_date_month} {most_recent_date.year}'
+    else:
+        earliest_month = calendar.month_name[earliest_date.month ] 
+        date_label = f'{earliest_month} {earliest_date.year} through {end_date_month} {most_recent_date.year}'
 
 
     graph2_processed_data = graph_data_prep(selected_client= selected_client, data = all_data, graph_num = 2,  start_interval=interval_start)
@@ -755,7 +751,7 @@ def update_graph2(selected_client, click, versions_button, button_6months,  butt
         showlegend=True,
         height = 400 + 7*y,
         legend=dict(yanchor="bottom", y=1, xanchor="right", x=1, orientation="h", itemsizing='constant'),
-        title = 'Open Tickets by Product Version for Summary of ' + selected_client
+        title = f'Open Tickets by Product Version for Summary of {selected_client} from {date_label}'
     )
     fig2.update_traces(textfont_size=10)
 
@@ -870,6 +866,16 @@ def update_graph3(selected_client,click,sort_button,totals_button, button_6month
         interval_start = timedelta(days = 91) # data for the last 3 months 
     else:
         interval_start = None 
+    
+    end_date_month = calendar.month_name[most_recent_date.month]
+
+    if (interval_start!= timedelta(days = 365)) and (interval_start != None):
+        start_date = most_recent_date  - interval_start
+        start_month = calendar.month_name[start_date.month ] 
+        date_label = f'{start_month} {start_date.year} through {end_date_month} {most_recent_date.year}'
+    else:
+        earliest_month = calendar.month_name[earliest_date.month ] 
+        date_label = f'{earliest_month} {earliest_date.year} through {end_date_month} {most_recent_date.year}'
 
 
     graph3_processed_data = graph_data_prep(selected_client= selected_client, data = all_data, graph_num = 1, start_interval=interval_start)
@@ -886,7 +892,7 @@ def update_graph3(selected_client,click,sort_button,totals_button, button_6month
         height=800,width =800 + 13*len(x),
         legend=dict(yanchor="top", y=1, xanchor="left", x=0, orientation="h"),
         title={
-            'text': 'Proportion of Defects to Case Activity by Product for Summary of ' + selected_client,
+            'text': f'Proportion of Defects to Case Activity by Product for Summary of {selected_client} from {date_label}' ,
             'y':0.97,
             'x':0,
             'xanchor': 'left',
@@ -949,11 +955,50 @@ def update_graph3(selected_client,click,sort_button,totals_button, button_6month
     fig3.update_layout(title=None,updatemenus=[dict(visible = False)],legend=dict(yanchor="bottom", y=1, xanchor="left", x=0, orientation="h"),)
 
     return fig3
+
+
+
 #==========================================================================================================================================
 #download button
 graph_one = os.path.join(os.getcwd(), 'graph-one.html')
 graph_two = os.path.join(os.getcwd(), 'graph-two.html')
 graph_three = os.path.join(os.getcwd(), 'graph-three.html')
+
+
+# download client data ----
+@app.callback(
+    Output("download-data", "data"),
+    Input("download-data-button", "n_clicks"),
+    Input(component_id=geo_dropdown, component_property='value'),#client dropdown selection
+    prevent_initial_call=True,
+)
+
+def download_client_data(n_clicks, selected_client):
+    filtered_data_by_client = all_data[all_data['Global Buying Group Name'] == selected_client]
+    filtered_data_by_client['Date'] = pd.to_datetime(filtered_data_by_client['Month'])
+    latest_date = filtered_data_by_client['Date'].max() # the most recent date 
+    # filtering based off input from the buttons
+    interval_start = None
+    if 'button_6months' == ctx.triggered_id:
+        interval_start = timedelta(days = 182) # data for last 6 months 
+    elif 'button_1year' == ctx.triggered_id:
+        interval_start = timedelta(days = 365) # data for last 1 year
+    elif 'button4_3months' == ctx.triggered_id:
+        interval_start = timedelta(days = 91) # data for the last 3 months 
+    else:
+        interval_start = None
+    if 'download-data-button' == ctx.triggered_id:
+        if interval_start:
+            start_date = latest_date - interval_start
+            data_filtered_by_date = filtered_data_by_client[(filtered_data_by_client['Date'] <= latest_date) & (filtered_data_by_client['Date'] >= start_date)]
+        else:
+            data_filtered_by_date = filtered_data_by_client
+        cols_to_drop = ['Unnamed: 0', 'Salesforce Record Type', 'Ticketing System', 'Origin', 'Source', 'Row Type', 'IP Partners', 'Mission Team Group', 'Is Blue Diamond', 
+                        'Is CritSit', 'Dv Parent', 'Is Screened (BAIW)', 'Is Eligible (BAIW)', 'Is Cancelled (BAIW)', 'Skill Case Sort Key']
+        data_filtered_by_date.drop(columns = cols_to_drop, inplace = True)
+        return dcc.send_data_frame(data_filtered_by_date.to_csv, f'{selected_client}_data.csv')
+
+# download the html report 
 
 @app.callback(
     Output("download-html", "data"),
@@ -1049,6 +1094,8 @@ def layout_components(n):
             html.Br(),
             dbc.Button([FA_icon, "Download Report"], color="info", className=("m-1"), outline=True, id = 'download-button'),
             dcc.Download(id="download-html"),
+            dbc.Button([FA_icon, "Download Client Data"], color="info", className=("m-1"), outline=True, id = 'download-data-button', n_clicks= 0 ),
+            dcc.Download(id="download-data"),
             html.Br(),html.Br(),
             html.H3(id='title1'),
             dbc.Button('3 Months', id = 'button4_3months', n_clicks = 0, color = 'primary', outline = True),
@@ -1090,6 +1137,9 @@ def layout_components(n):
         ], className='six columns'),
     ], className='row'),
     ]
+
+
+
 
 if __name__ == "__main__":
     app.run_server(host = "0.0.0.0")
