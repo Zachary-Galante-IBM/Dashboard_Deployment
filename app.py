@@ -53,14 +53,24 @@ client_data = client_data['Body'].read()
 # writing to a csv and then loading into a pandas DataFrame
 with open('All_2023_data.csv','wb') as file:
     file.write(client_data)
+
+# New Monthly Data
+monthly_data = get_item('oidash-app','Jan24.csv')
+monthly_data = monthly_data['Body'].read()
+with open('Jan24.csv','wb') as file:
+    file.write(client_data)
 ######################################## """
 
-#client_focus_list = pd.read_csv('Graph2_All_Data_23.csv') # for graph 2 
-#clients = pd.read_csv('Graphs1_3_All_23.csv') # for graphs 1 and 3 
     
 
 all_data = pd.read_csv('All_2023_data.csv')
+cloud_columns = list(all_data.columns)
+if 'Unnamed: 0' in cloud_columns:
+    all_data.drop(columns = ['Unnamed: 0'], inplace = True)
+new_data = pd.read_csv('Jan24.csv')
+new_data['Date'] = pd.to_datetime(new_data['Month'])
 all_data['Date'] = pd.to_datetime(all_data['Month'])
+all_data = pd.concat([all_data, new_data])
 earliest_date = all_data['Date'].min() # earliest date 
 most_recent_date = all_data['Date'].max() # the most recent date 
 
