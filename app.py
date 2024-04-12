@@ -48,10 +48,10 @@ def get_item(bucket_name, item_name):
 
 ######### FOR CLOUD DEPLOYMENT ########
 # getting the contents of the file from the COS
-client_data = get_item('oidash-app','All_2023_data.csv')
+client_data = get_item('oidash-app','All_2023_Data_PID_Info.csv')
 client_data = client_data['Body'].read()
 # writing to a csv and then loading into a pandas DataFrame
-with open('All_2023_data.csv','wb') as file:
+with open('All_2023_Data_PID_Info.csv','wb') as file:
     file.write(client_data)
 # New Monthly Data
 jan_data = get_item('oidash-app','Jan24.csv')
@@ -62,42 +62,40 @@ feb_data = get_item('oidash-app','Feb24.csv')
 feb_monthly_data = feb_data['Body'].read()
 with open('Feb24.csv','wb') as file:
     file.write(feb_monthly_data)
-######################################## """
-
-all_data = pd.read_csv('All_2023_data.csv')
+march_data = get_item('oidash-app','March_24.csv')
+march_monthly_data = march_data['Body'].read()
+with open('March_24.csv', 'wb') as file:
+    file.write(march_monthly_data)
+######################################## 
+all_data = pd.read_csv('All_2023_Data_PID_Info.csv')
 cloud_columns = list(all_data.columns)
 if 'Unnamed: 0' in cloud_columns:
     all_data.drop(columns = ['Unnamed: 0'], inplace = True)
 jan_data_loaded = pd.read_csv('Jan24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 feb_data_loaded = pd.read_csv('Feb24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
+march_data_loaded = pd.read_csv('March_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 jan_data_loaded['Date'] = pd.to_datetime(jan_data_loaded['Month'])
 feb_data_loaded['Date'] = pd.to_datetime(feb_data_loaded['Month'])
+march_data_loaded['Date'] = pd.to_datetime(feb_data_loaded['Month'])
 all_data['Date'] = pd.to_datetime(all_data['Month'])
-all_data = pd.concat([all_data, jan_data_loaded, feb_data_loaded])
+all_data = pd.concat([all_data, jan_data_loaded, feb_data_loaded, march_data_loaded])
 earliest_date = all_data['Date'].min() # earliest date 
 most_recent_date = all_data['Date'].max() # the most recent date 
-
 # get the dictionaries and write them to JSON files
-red = get_item('oidash-app','red.json')
+red = get_item('oidash-app','Red_dict_Feb_24_final.json')
 red = red['Body'].read()
 with open('red.json','wb') as file:
     file.write(red)
-orange = get_item('oidash-app','orange.json')
+orange = get_item('oidash-app','Orange_dict_Feb_24_final.json')
 orange = orange['Body'].read()
 with open('orange.json','wb') as file:
     file.write(orange)
-green = get_item('oidash-app','green.json')
+green = get_item('oidash-app','Green_dict_Feb_24_final.json')
 green = green['Body'].read()
 with open('green.json','wb') as file:
     file.write(green)
 
 
-#clients = pd.read_csv('clients_defects_june_23.csv')
-
-#clients.drop(columns = clients.columns[0], inplace = True)
-#client_focus_list = pd.read_csv('graph2_data_june_23.csv')
-#client_focus_list.drop(columns = client_focus_list.columns[0], inplace = True)
-#client_focus_list.drop(columns = ['c_color'], inplace = True)
 
 # changing some column names for uniformity
 #clients["Product name"]=clients["Product Name"]
@@ -109,21 +107,22 @@ app = dash.Dash(__name__, server = auth.flask, url_base_pathname = DASH_URL_BASE
 #==========================================================================================================================================
 #Import Dictionaries - Used for calculating the color for EOS status
 #RED: products and related versions that have reached end of support
-with open('red.json', 'r') as f:
+with open('Red_dict_Feb_24_final.json', 'r') as f:
   red = json.load(f)
 f.close()
 #ORANGE: products and related versions that are approaching end of support within 12 months
-with open('orange.json', 'r') as f:
+with open('Orange_dict_Feb_24_final.json', 'r') as f:
   orange = json.load(f)
 f.close()
 #GREEN: products and related versions that are approaching end of support within 12 months
-with open('green.json', 'r') as f:
+with open('Green_dict_Feb_24_final.json', 'r') as f:
   green = json.load(f)
 f.close()
+
 # changing how some specific products are represented in the dictionary 
 if 'PowerVM VIOS Enterprise Edition' in list(red.keys()):
     red['PowerVM / VIOS'] = red['PowerVM VIOS Enterprise Edition'] 
-    del red['PowerVM VIOS Express Edition']
+    del red['PowerVM VIOS Enterprise Edition']
 if 'PowerVM VIOS Enterprise Edition' in list(green.keys()):
     green['PowerVM / VIOS'] = green['PowerVM VIOS Enterprise Edition'] 
     del green['PowerVM VIOS Enterprise Edition']
@@ -158,8 +157,6 @@ if 'IBM Tivoli Management Services on z/OS' in list(green.keys()):
 if 'IBM Tivoli Management Services on z/OS' in list(orange.keys()):
     orange['Tivoli Management Services for z/OS'] = orange['IBM Tivoli Management Services on z/OS']  
     del orange['IBM Tivoli Management Services on z/OS']
-orange['Integrated Analytics Systems'] = orange['IBM Integrated Analytics System']
-orange['Integrated Analytics Systems'].append('1.0.x')
 if 'IBM Integrated Analytics System' in list(green.keys()):
     green['IBM Integrated Analytics System'] = green['IBM Integrated Analytics System'].append('1.0.x')
 if 'IBM Planning Analytics Local' in list(green.keys()):
@@ -194,6 +191,63 @@ if 'IBM Aspera Faspex' in list(green.keys()):
     green['Aspera'] = green['IBM Aspera Faspex']
 if 'IBM Aspera Faspex' in list(orange.keys()):
     orange['Aspera'] = orange['IBM Aspera Faspex']
+if 'AIX Standard Edition' in list(red.keys()):
+    red['AIX'] = red['AIX Standard Edition'] 
+if 'AIX Standard Edition' in list(green.keys()):
+    green['AIX'] = green['AIX Standard Edition']
+    green['AIX'].append('7.3.0')
+if 'AIX Standard Edition' in list(orange.keys()):
+    orange['AIX'] = orange['AIX Standard Edition'] 
+if 'IBM Aspera High-Speed Transfer Endpoint (HSTE)' in list(red.keys()):
+    red['Aspera'] = red['IBM Aspera High-Speed Transfer Endpoint (HSTE)'] 
+if 'IBM Aspera High-Speed Transfer Endpoint (HSTE)' in list(green.keys()):
+    green['Aspera'] = green['IBM Aspera High-Speed Transfer Endpoint (HSTE)'] 
+if 'AIX Standard Edition' in list(orange.keys()):
+    orange['Aspera'] = orange['IBM Aspera High-Speed Transfer Endpoint (HSTE)']
+if 'Tivoli Netcool/Impact' in list(red.keys()):
+    red['Netcool/Impact'] = red['Tivoli Netcool/Impact'] 
+if 'Tivoli Netcool/Impact' in list(green.keys()):
+    green['Netcool/Impact'] = green['Tivoli Netcool/Impact'] 
+if 'Tivoli Netcool/Impact' in list(orange.keys()):
+    orange['Netcool/Impact'] = orange['Tivoli Netcool/Impact']
+##
+if 'Tivoli Netcool/OMNIbus' in list(red.keys()):
+    red['Netcool/OMNIbus'] = red['Tivoli Netcool/OMNIbus'] 
+if 'Tivoli Netcool/OMNIbus' in list(green.keys()):
+    green['Netcool/OMNIbus'] = green['Tivoli Netcool/OMNIbus'] 
+if 'Tivoli Netcool/OMNIbus' in list(orange.keys()):
+    orange['Netcool/OMNIbus'] = orange['Tivoli Netcool/OMNIbus'] 
+#
+if 'IBM Sterling Connect:Direct for z/OS' in list(red.keys()):
+    red['IBM Sterling Connect: Direct for z/OS'] = red['IBM Sterling Connect:Direct for z/OS'] 
+if 'IBM Sterling Connect:Direct for z/OS' in list(green.keys()):
+    green['IBM Sterling Connect: Direct for z/OS'] = green['IBM Sterling Connect:Direct for z/OS'] 
+if 'IBM Sterling Connect:Direct for z/OS' in list(orange.keys()):
+    orange['IBM Sterling Connect: Direct for z/OS'] = orange['IBM Sterling Connect:Direct for z/OS'] 
+#
+if 'IBM Security QRadar SIEM' in list(red.keys()):
+    red['QRadar SIEM'] = red['IBM Security QRadar SIEM'] 
+if 'IBM Security QRadar SIEM' in list(green.keys()):
+    green['QRadar SIEM'] = green['IBM Security QRadar SIEM'] 
+if 'IBM Security QRadar SIEM' in list(orange.keys()):
+    orange['QRadar SIEM'] = orange['IBM Security QRadar SIEM'] 
+#
+if 'IBM QRadar' in list(red.keys()):
+    red['QRadar Applications'] = red['IBM QRadar'] 
+if 'IBM QRadar' in list(green.keys()):
+    green['QRadar Applications'] = green['IBM QRadar'] 
+if 'IBM QRadar' in list(orange.keys()):
+    orange['QRadar Applications'] = orange['IBM QRadar']
+#
+if 'IBM Sterling Order Management System' in list(green.keys()):
+    green['Order Management On Cloud'] = green['IBM Sterling Order Management System'] 
+#
+if 'IBM TRIRIGA Application Platform' in list(red.keys()):
+    red['TRIRIGA Platform'] = red['IBM TRIRIGA Application Platform'] 
+if 'IBM TRIRIGA Application Platform' in list(green.keys()):
+    green['TRIRIGA Platform'] = green['IBM TRIRIGA Application Platform'] 
+if 'IBM TRIRIGA Application Platform' in list(orange.keys()):
+    orange['TRIRIGA Platform'] = orange['IBM TRIRIGA Application Platform']
 
  #   red['Netcool/OMNIbus'].append(red['Tivoli Netcool/OMNIbus'])
 #if 'Tivoli Netcool/OMNIbus' in list(green.keys()):
@@ -201,7 +255,12 @@ if 'IBM Aspera Faspex' in list(orange.keys()):
 #if 'Tivoli Netcool/OMNIbus' in list(orange.keys()):
  #   orange['Netcool/OMNIbus'].append(orange['Tivoli Netcool/OMNIbus'])
 
-    
+red = {red_key.lower() : value  for red_key, value  in red.items()}
+green = {green_key.lower() : value  for green_key, value  in green.items()}
+orange = {orange_key.lower() : value  for orange_key, value  in orange.items()}
+red = {key: value for key, value in red.items() if value[0] is not None} 
+orange = {key: value for key, value in orange.items() if value[0] is not None}
+green = {key: value for key, value in green.items() if value[0] is not None}
     
     #==========================================================================================================================================
 # Supporting Functions
@@ -213,7 +272,7 @@ def calc_color(x):
     Return: (string) - color associated with product version EOS status
     Comments: Uses dictionaries 'red' and 'orange' to determine colors based on EOS status
     ---------------------------------------------------------------------------------"""
-    prod_string=x["Product Name"]
+    prod_string=x["Product Name"].lower()
     version=str(x['Product Version']).lower()
     # for instances where the product name is the EXACT same 
     if prod_string in red and version in red[prod_string]:#if product in red and version in red
@@ -223,8 +282,8 @@ def calc_color(x):
     elif prod_string in green and version in green[prod_string]:#if product in green and version in green
         return "green"
     elif version == None or version == " " or version == "" or version == "NaN" or version == "nan":
-        return "blue" 
-
+        return "blue"  
+    
 
 
     #if exact product name not found, check if products exist in string. Ex: 'MQ' in 'IBM MQ'
@@ -354,6 +413,81 @@ def detect_shortest_string(LIST,prod_string):
             best_match = percent_match
             loc = index
     return LIST[loc]
+def process_blues(row):
+    if row['color'] == 'blue':
+        pidname = row['pidname']
+        if type(pidname) == str: # Not all Blues have a pidname and some will be None
+            pidname = pidname.lower()
+            version = row['Product Version'].lower()
+            if pidname in red and version in red[pidname]:#if product in red and version in red
+                return "red"
+            elif pidname in red and version[:-1] + 'x' in red[pidname]:
+                return "red"
+            elif pidname in red and version + '.0' in red[pidname]:
+                return "red"
+            elif pidname in red and re.sub(r"\.[^\.]*$","",version)+ '.x' in red[pidname]:
+                return "red"
+            elif pidname in green and version in green[pidname]:
+                return "green"
+            elif pidname in green and 'C.D.0' in green[pidname]:
+                return 'green'
+            elif pidname in green and version[:-1] + 'x' in green[pidname]:
+                return  "green"
+            elif pidname in green and re.sub(r"\.[^\.]*$","",version)+ '.x' in green[pidname]:
+                return "green"
+            elif pidname in green and version + '.0' in green[pidname]:
+                return "green"
+            # go through for the orange products 
+            elif pidname in orange and version in orange[pidname]:
+                return "orange"
+            elif pidname in orange and version[:-1] + 'x' in orange[pidname]:
+                return "orange"
+            elif pidname in orange and re.sub(r"\.[^\.]*$","",version)+ '.x' in orange[pidname]:
+                return "orange"
+            elif pidname in orange and version + '.0' in orange[pidname]:
+                return "orange"
+            #### ---- Loop to start looking at the .x versions 
+            green_versions = None
+            red_versions = None 
+            orange_versions = None
+            if pidname in green:
+                green_versions = green[pidname]
+            if pidname in red:
+                red_versions = red[pidname]
+            if pidname in orange:
+                orange_versions = orange[pidname]
+            if red_versions:
+                for i in red_versions:
+                    if 'x' in i:
+                        support_version_split = i.split('.')
+                        x_location = support_version_split.index('x')
+                        support_versions = support_version_split[0:x_location]
+                        split_ticket_version = version.split('.')
+                        ticket_version_till_x = split_ticket_version[0:x_location]
+                        if ticket_version_till_x == support_versions:
+                             return 'red'
+            if green_versions:
+                for i in green_versions:
+                    if 'x' in i:
+                        support_version_split = i.split('.')
+                        x_location = support_version_split.index('x')
+                        support_versions = support_version_split[0:x_location]
+                        split_ticket_version = version.split('.')
+                        ticket_version_till_x = split_ticket_version[0:x_location]
+                        if ticket_version_till_x == support_versions:
+                             return "green"
+            if orange_versions:
+                for i in orange_versions:
+                    if 'x' in i:
+                        support_version_split = i.split('.')
+                        x_location = support_version_split.index('x')
+                        support_versions = support_version_split[0:x_location]
+                        split_ticket_version = version.split('.')
+                        ticket_version_till_x = split_ticket_version[0:x_location]
+                        if ticket_version_till_x == support_versions:
+                             return "orange"
+            return 'blue' 
+    return row['color']
 def clean_versions(txt):
     """---------------------------------------------------------------------------------
     Description:Function used in association with graph 2 to clean the text of version annotations
@@ -432,7 +566,7 @@ def string_replace(summary):
     
     return summary
 
-def graph_data_prep(selected_client, data, graph_num,  start_interval = None):
+def graph_data_prep(selected_client, data, graph_num,  start_interval = None, product_type = None):
     from natsort import natsort_keygen
     """
     Processes data used to populate graphs used 
@@ -457,6 +591,14 @@ def graph_data_prep(selected_client, data, graph_num,  start_interval = None):
     else:
         data_filtered_by_date = filtered_data_by_client
     data_filtered_by_date['Initial Severity'] = data_filtered_by_date['Initial Severity'].astype(float).astype(int)
+
+    # allows the user to specify if they would like to include either only hardware or software
+
+    if product_type == 'Hardware':
+        data_filtered_by_date = data_filtered_by_date[data_filtered_by_date['Is Hardware'] == 1]
+    elif product_type == 'Software':
+        data_filtered_by_date = data_filtered_by_date[data_filtered_by_date['Is Software'] == 1]
+
 
     if (graph_num == 1) or (graph_num == 3): # processes the data to be used for the 1st and 3rd graphs 
         # now can start processing data 
@@ -496,13 +638,14 @@ def graph_data_prep(selected_client, data, graph_num,  start_interval = None):
         for sev in sevs_to_add:
             client_defects_data[sev] = [0] * len(client_defects_data)
     
-    if graph_num == 2: #processes the data needed for graph 2 
+    if graph_num == 2: #processes the data needed for graph 2
         filtered_by_date_cleaned = string_replace(data_filtered_by_date)
         filtered_by_date_sub = filtered_by_date_cleaned[["Year","Month","Case Number","Product Version","Product Name","Initial Severity","Parent Id","Is Defect","Defect Number","Customer Name","Customer Id","Global Buying Group Name","Parent Case Number"]]
         filtered_by_date_sub= filtered_by_date_sub[filtered_by_date_sub['Parent Case Number'].isnull()]
         filtered_by_date_sub['Initial Severity']=filtered_by_date_sub['Initial Severity'].astype(str).str.replace('.0', '', regex=False)
         filtered_by_date_sub.loc[filtered_by_date_sub["Product Name"].str.contains("InfoSphere Information Server"), "Product Name"] = 'IBM InfoSphere Information Server'
         filtered_by_date_sub.loc[filtered_by_date_sub["Product Name"].str.contains("Hortonworks Data Platform for IBM"), "Product Name"] = 'Hortonworks Data Platform'
+        #filtered_by_date_sub = filtered_by_date_sub.merge(how = 'left', on = 'Product Name', right = product_info_table_subset)
         filtered_by_date_sub['color'] = filtered_by_date_sub.apply(calc_color,axis=1).tolist()#find color/support status
         
         # product name and version grouped 
@@ -520,7 +663,13 @@ def graph_data_prep(selected_client, data, graph_num,  start_interval = None):
         product_info_grouped = product_info_grouped.rename(columns = {'Global Buying Group Name' : 'client'})
         product_info_grouped['color'] = product_info_grouped.apply(calc_color,axis=1).tolist()#find color/support status
 
-        client_defects_data = product_info_grouped
+        product_info_table = all_data.groupby('Product Name').first().reset_index() # TODO: MAKE THIS MORE STREAMLINED
+        product_info_table_subset = product_info_table[['Product Name', 'pidname']]
+        graph2_merged_data = product_info_grouped.merge(how = 'left', on = 'Product Name', right = product_info_table_subset)
+        graph2_merged_data['color'] = graph2_merged_data.apply(process_blues, axis = 1)
+
+
+        client_defects_data = graph2_merged_data
 
     return client_defects_data        
 #==========================================================================================================================================
@@ -548,9 +697,15 @@ download_component = dcc.Download()
     Input('Totals-1', 'n_clicks'),
     Input('button_6months', 'n_clicks'), # buttons to represent the date range
     Input('button4_3months', 'n_clicks'),
-    Input('button_1year', 'n_clicks')
+    Input('button_1year', 'n_clicks'),
+    Input('button5_top5_products', 'n_clicks'),
+    Input('button6_top10_products', 'n_clicks'),
+    Input('button_hardware', 'n_clicks'),
+    Input('button_software', 'n_clicks'),
+    Input('button_all_products', 'n_clicks')
+
 )
-def update_graph1(selected_client, click, sort_button, totals_button, button_6months,  button_1year, button4_3months):
+def update_graph1(selected_client, click, sort_button, totals_button, button_6months,  button_1year, button4_3months, button5_top5_products, button6_top10_products, button_hardware, button_software, button_all_products):
     """
     returns a bar graph of product open tickets and their severity
     for selected client represented by values 1-4
@@ -563,6 +718,16 @@ def update_graph1(selected_client, click, sort_button, totals_button, button_6mo
             legend1[num] = True
         else: legend1[num] = vis
 
+    if 'button_hardware' == ctx.triggered_id:
+        product_type = 'Hardware'
+    elif 'button_software' == ctx.triggered_id:
+        product_type = 'Software'
+    elif 'button_all_products' == ctx.triggered_id:
+        product_type = None
+    else:
+        product_type = None
+    
+
     # logic for the date buttons and filters data accordingly
     # gets all data in the specified date range
     interval_start = None
@@ -573,11 +738,8 @@ def update_graph1(selected_client, click, sort_button, totals_button, button_6mo
     elif 'button4_3months' == ctx.triggered_id:
         interval_start = timedelta(days = 91) # data for the last 3 months 
     else:
-        interval_start = None 
+        interval_start = None
 
-    # get the most recent date for the graph label 
-    ##if most_recent_date.month ==  12:
-      #  most_recent_month = 1
     end_date_month = calendar.month_name[most_recent_date.month]
 
     if (interval_start!= timedelta(days = 365)) and (interval_start != None):
@@ -588,7 +750,14 @@ def update_graph1(selected_client, click, sort_button, totals_button, button_6mo
         earliest_month = calendar.month_name[earliest_date.month ] 
         date_label = f'{earliest_month} {earliest_date.year} through {end_date_month} {most_recent_date.year}'
 
-    graph1_processed_data = graph_data_prep(selected_client= selected_client, data = all_data, graph_num = 1, start_interval=interval_start)
+    graph1_processed_data = graph_data_prep(selected_client= selected_client, data = all_data, graph_num = 1, start_interval=interval_start, product_type= product_type)
+    if 'button5_top5_products' == ctx.triggered_id:
+        graph1_processed_data = graph1_processed_data.sort_values(by = 'total', ascending = False).head()
+    elif 'button6_top10_products' == ctx.triggered_id:
+        graph1_processed_data = graph1_processed_data.sort_values(by = 'total', ascending = False).head(10)
+    else:
+        graph1_processed_data = graph1_processed_data
+
 
     #create custom annotations based on legend status
     first = True
@@ -612,7 +781,7 @@ def update_graph1(selected_client, click, sort_button, totals_button, button_6mo
     fig1.update_layout(
         barmode='stack', xaxis={'categoryorder': 'category ascending'},
         height=800, width =800 + 13*len(x),
-        legend=dict(yanchor="top", y=1, xanchor="left", x=0, orientation="h", traceorder='normal'),
+        legend=dict(yanchor="bottom", y=1, xanchor="auto", x=1, orientation="h", itemsizing='constant'),
         title={# Only appears for the HTML download
             'text': f'Tickets Opened by Severity for {selected_client} from {date_label}',
             'y':0.97,
@@ -676,9 +845,14 @@ def update_graph1(selected_client, click, sort_button, totals_button, button_6mo
     Input('Versions', 'n_clicks'),#versions button and number of clicks
     Input('button_6months', 'n_clicks'), # buttons to represent the date range
     Input('button4_3months', 'n_clicks'),
-    Input('button_1year', 'n_clicks')
+    Input('button_1year', 'n_clicks'),
+    Input('button5_top5_products', 'n_clicks'),
+    Input('button6_top10_products', 'n_clicks'),
+    Input('button_hardware', 'n_clicks'),
+    Input('button_software', 'n_clicks'),
+    Input('button_all_products', 'n_clicks')
 )
-def update_graph2(selected_client, click, versions_button, button_6months,  button_1year, button4_3months):
+def update_graph2(selected_client, click, versions_button, button_6months,  button_1year, button4_3months, button5_top5_products, button6_top10_products, button_hardware, button_software, button_all_products):
     """
     Returns a scatter plot graph of open tickets based on
     ticket count and color coordinated based on End of Support
@@ -716,6 +890,15 @@ def update_graph2(selected_client, click, versions_button, button_6months,  butt
 
     filtered_clients = summary_new """
 
+    if 'button_hardware' == ctx.triggered_id:
+        product_type = 'Hardware'
+    elif 'button_software' == ctx.triggered_id:
+        product_type = 'Software'
+    elif 'button_all_products' == ctx.triggered_id:
+        product_type = None
+    else:
+        product_type = None
+
     interval_start = None
     if 'button_6months' == ctx.triggered_id:
         interval_start = timedelta(days = 182) # data for last 6 months 
@@ -737,7 +920,15 @@ def update_graph2(selected_client, click, versions_button, button_6months,  butt
         date_label = f'{earliest_month} {earliest_date.year} through {end_date_month} {most_recent_date.year}'
 
 
-    graph2_processed_data = graph_data_prep(selected_client= selected_client, data = all_data, graph_num = 2,  start_interval=interval_start)
+    graph2_processed_data = graph_data_prep(selected_client= selected_client, data = all_data, graph_num = 2,  start_interval=interval_start, product_type= product_type)
+
+
+    if 'button5_top5_products' == ctx.triggered_id:
+        graph2_processed_data = graph2_processed_data.sort_values(by = 'counts', ascending = False).head()
+    elif 'button6_top10_products' == ctx.triggered_id:
+        graph2_processed_data = graph2_processed_data.sort_values(by = 'counts', ascending = False).head(10)
+    else:
+        graph2_processed_data = graph2_processed_data
 
     #seperate into traces by EOS status
     colors = {'green': 'In Support','orange':"End of Support Within 12 Months",'red': "End of Support",'blue':'N/A Version'}
@@ -853,9 +1044,14 @@ def update_graph2(selected_client, click, versions_button, button_6months,  butt
     Input('Totals-2', 'n_clicks'),#totals button and number of clicks
     Input('button_6months', 'n_clicks'), # buttons to represent the date range
     Input('button4_3months', 'n_clicks'),
-    Input('button_1year', 'n_clicks')
+    Input('button_1year', 'n_clicks'),
+    Input('button5_top5_products', 'n_clicks'),
+    Input('button6_top10_products', 'n_clicks'),
+    Input('button_hardware', 'n_clicks'),
+    Input('button_software', 'n_clicks'),
+    Input('button_all_products', 'n_clicks')
 )
-def update_graph3(selected_client,click,sort_button,totals_button, button_6months,  button_1year, button4_3months):
+def update_graph3(selected_client,click,sort_button,totals_button, button_6months,  button_1year, button4_3months,  button5_top5_products, button6_top10_products, button_hardware, button_software, button_all_products):
     """
     Returns Bar graph of open tickets based on product count
     and categorized by Defect or How to Questions.
@@ -867,6 +1063,15 @@ def update_graph3(selected_client,click,sort_button,totals_button, button_6month
         if vis == "True":
             legend3[num] = True
         else: legend3[num] = vis
+
+    if 'button_hardware' == ctx.triggered_id:
+        product_type = 'Hardware'
+    elif 'button_software' == ctx.triggered_id:
+        product_type = 'Software'
+    elif 'button_all_products' == ctx.triggered_id:
+        product_type = None
+    else:
+        product_type = None
 
 
 
@@ -891,7 +1096,14 @@ def update_graph3(selected_client,click,sort_button,totals_button, button_6month
         date_label = f'{earliest_month} {earliest_date.year} through {end_date_month} {most_recent_date.year}'
 
 
-    graph3_processed_data = graph_data_prep(selected_client= selected_client, data = all_data, graph_num = 1, start_interval=interval_start)
+    graph3_processed_data = graph_data_prep(selected_client= selected_client, data = all_data, graph_num = 1, start_interval=interval_start, product_type= product_type)
+
+    if 'button5_top5_products' == ctx.triggered_id:
+        graph3_processed_data = graph3_processed_data.sort_values(by = 'total', ascending = False).head()
+    elif 'button6_top10_products' == ctx.triggered_id:
+        graph3_processed_data = graph3_processed_data.sort_values(by = 'total', ascending = False).head(10)
+    else:
+        graph3_processed_data = graph3_processed_data
 
 
     #create base graph
@@ -903,7 +1115,7 @@ def update_graph3(selected_client,click,sort_button,totals_button, button_6month
     fig3.update_layout(
         barmode='stack', xaxis={'categoryorder': 'category ascending'},
         height=800,width =800 + 13*len(x),
-        legend=dict(yanchor="top", y=1, xanchor="left", x=0, orientation="h"),
+        legend=dict(yanchor="bottom", y=1, xanchor="auto", x=1, orientation="h", itemsizing='constant'),
         title={
             'text': f'Proportion of Defects to Case Activity by Product for Summary of {selected_client} from {date_label}' ,
             'y':0.97,
@@ -1000,7 +1212,7 @@ def download_client_data(n_clicks, selected_client):
         interval_start = timedelta(days = 91) # data for the last 3 months 
     else:
         interval_start = None
-    if 'download-data-button' == ctx.triggered_id:
+    if 'download-data-button' == ctx.triggered_id: # if the button is clicked
         if interval_start:
             start_date = latest_date - interval_start
             data_filtered_by_date = filtered_data_by_client[(filtered_data_by_client['Date'] <= latest_date) & (filtered_data_by_client['Date'] >= start_date)]
@@ -1066,17 +1278,70 @@ def update_output(selected_client):
     Returns strings of graph titles dependent on dropdown value.
     Used in HTML layout
     """
-    title1 = 'Open Tickets by Product Version for Summary of ' + selected_client
+    title1 = 'Open Tickets by Product Severity for Summary of ' + selected_client
     title2 = 'Open Tickets by Product Version for Summary of ' + selected_client
     title3 = 'Proportion of Defects to Case Activity by Product for Summary of ' + selected_client
     return title1, title2, title3
 
+# get the button selections for all buttons
+
+@app.callback(
+    # Date Selection LABELS 
+    Output('selected_date1', 'children'),
+    Output('selected_date2', 'children'),
+    Output('selected_date3', 'children'),
+    # Hardware / Software Selections LABELS 
+    Output('product_specification1', 'children'),
+    Output('product_specification2', 'children'),
+    Output('product_specification3', 'children'),
+    # Top product specification
+    Output('top_products1', 'children'),
+    Output('top_products2', 'children'),
+    Output('top_products3', 'children'),
+    # buttons used to make specific modifications 
+    Input('button_6months', 'n_clicks'),
+    Input('button4_3months', 'n_clicks'),
+    Input('button_1year', 'n_clicks'),
+    # buttons for the top products
+    Input('button5_top5_products', 'n_clicks'),
+    Input('button6_top10_products', 'n_clicks'),
+    # buttons for the product types
+    Input('button_hardware', 'n_clicks'),
+    Input('button_software', 'n_clicks'),
+    Input('button_all_products', 'n_clicks'))
+
+def return_parameter_labels(button_6months,  button_1year, button4_3months, button5_top5_products, button6_top10_products, button_hardware, button_software, button_all_products):
+    # default labels
+    selected_date1, selected_date2, selected_date3 = 'Selected Date Range: None', 'Selected Date Range: None', 'Selected Date Range: None'
+    product_specification1, product_specification2, product_specification3 = 'Product Specifications Selected: None', 'Product Specifications Selected: None', 'Product Specifications Selected: None'
+    top_products1, top_products2, top_products3 = 'Top Products Selected: None', 'Top Products Selected: None', 'Top Products Selected: None'
+    # LABELS for the product specification buttons
+    if 'button_hardware' == ctx.triggered_id:
+        product_specification1, product_specification2, product_specification3 = 'Product Specifications Selected: Hardware', 'Product Specifications Selected: Hardware', 'Product Specifications Selected: Hardware'
+    elif 'button_software' == ctx.triggered_id:
+        product_specification1, product_specification2, product_specification3 = 'Product Specifications Selected: Software', 'Product Specifications Selected: Software', 'Product Specifications Selected: Software'
+    elif 'button_all_products' == ctx.triggered_id:
+        product_specification1, product_specification2, product_specification3 = 'Product Specifications Selected: All', 'Product Specifications Selected: All', 'Product Specifications Selected: All'
+    # LABELS for the date ranges
+    if 'button_6months' == ctx.triggered_id:
+        selected_date1, selected_date2, selected_date3 = 'Selected Date Range: Last 6 Months' , 'Selected Date Range: Last 6 Months', 'Selected Date Range: Last 6 Months'
+    elif 'button_1year' == ctx.triggered_id:
+        selected_date1, selected_date2, selected_date3 = 'Selected Date Range: Previous Year', 'Selected Date Range: Previous Year', 'Selected Date Range: Previous Year'
+    elif 'button4_3months' == ctx.triggered_id: 
+        selected_date1, selected_date2, selected_date3 = 'Selected Date Range: Last 3 Months', 'Selected Date Range: Last 3 Months', 'Selected Date Range: Last 3 Months'
+    # LABELS for the top 5 and 10 products
+    if 'button5_top5_products' == ctx.triggered_id:
+        top_products1, top_products2, top_products3 = 'Top Products Selected: Top 5 Products' , 'Top Products Selected: Top 5 Products', 'Top Products Selected: Top 5 Products'
+    elif 'button6_top10_products' == ctx.triggered_id:
+        top_products1, top_products2, top_products3 = 'Top Products Selected: Top 10 Products', 'Top Products Selected: Top 10 Products', 'Top Products Selected: Top 10 Products'
+
+    return product_specification1, product_specification2, product_specification3, selected_date1, selected_date2, selected_date3, top_products1 , top_products2, top_products3
 #==========================================================================================================================================
 #HTML Layout
-
 FA_icon = html.I(className="fa-solid fa-cloud-arrow-down me-2")
 subtitle = 'Data from March 2022 through June 2023'
 disclaimer = 'Disclaimer: Products without version information may appear in graphs 1 and 3, but not graph 2'
+specification_disclaimer = '*** Please Note: Current Deployment Limits Exports to 1 Filter Parameter ***'
 app.layout = html.Div([
     html.Div(id = "page-content"),
     dcc.Interval(id = "auth-check-interval", interval = 3600 * 1000)
@@ -1111,9 +1376,21 @@ def layout_components(n):
             dcc.Download(id="download-data"),
             html.Br(),html.Br(),
             html.H3(id='title1'),
+            html.H5(specification_disclaimer),
             dbc.Button('3 Months', id = 'button4_3months', n_clicks = 0, color = 'primary', outline = True),
             dbc.Button('6 Months', id = 'button_6months', n_clicks = 0, color = 'primary',  outline = True),
             dbc.Button('1 Year', id = 'button_1year', n_clicks = 0, color = 'primary', outline = True),
+            html.H5(id='product_specification1'),
+            html.Br(),html.Br(),
+            dbc.Button('Include Only Hardware Products', color="success", className=("m-1"), outline=True, id='button_hardware', n_clicks=0),
+            dbc.Button('Include Only Software Products', color="success", className=("m-1"), outline=True, id='button_software', n_clicks=0),
+            dbc.Button('Include All Products', color="success", className=("m-1"), outline=True, id='button_all_products', n_clicks=0),
+            html.H5(id='selected_date1'),
+            html.Br(),html.Br(),
+            dbc.Button('Top 5 Products', color="success", className=("m-1"), outline=True, id='button5_top5_products', n_clicks=0),
+            dbc.Button('Top 10 Products', color="success", className=("m-1"), outline=True, id='button6_top10_products', n_clicks=0),
+            html.H5(id='top_products1'),
+            html.Br(),html.Br(),
             dbc.Button('Sort', color="success", className=("m-1"), outline=True, id='Sort-1', n_clicks=0),
             dbc.Button('Totals', color="success", className=("m-1"), outline=True, id='Totals-1', n_clicks=0),
             dcc.Graph(id='graph-one', style={'overflowX': 'scroll'}),
@@ -1128,10 +1405,21 @@ def layout_components(n):
                 html.Br(),
                 html.H3(id='title2'),
                 html.H5(disclaimer),
-                dbc.Button('Version ID', color="success", className=("m-1"), outline=True, id='Versions', n_clicks=0),
                 dbc.Button('3 Months', id = 'button4_3months', n_clicks = 0, color = 'primary', outline = True),
-                dbc.Button('6 Months', id = 'button_6months', n_clicks = 0, className = ('m-1'), color = 'success', outline = True),
-                dbc.Button('1 Year', id = 'button_1year', n_clicks = 0, className = ('m-1'), color = 'success', outline = True),
+                dbc.Button('6 Months', id = 'button_6months', n_clicks = 0, color = 'primary',  outline = True),
+                dbc.Button('1 Year', id = 'button_1year', n_clicks = 0, color = 'primary', outline = True),
+                html.H5(id='product_specification2'),
+                html.Br(),
+                dbc.Button('Include Only Hardware Products', color="success", className=("m-1"), outline=True, id='button_hardware', n_clicks=0),
+                dbc.Button('Include Only Software Products', color="success", className=("m-1"), outline=True, id='button_software', n_clicks=0),
+                dbc.Button('Include All Products', color="success", className=("m-1"), outline=True, id='button_all_products', n_clicks=0),
+                html.H5(id='selected_date2'),
+                html.Br(),
+                dbc.Button('Top 5 Products', color="success", className=("m-1"), outline=True, id='button5_top5_products', n_clicks=0),
+                dbc.Button('Top 10 Products', color="success", className=("m-1"), outline=True, id='button6_top10_products', n_clicks=0),
+                html.H5(id='top_products2'),
+                html.Br(),
+                dbc.Button('Version ID', color="success", className=("m-1"), outline=True, id='Versions', n_clicks=0),
                 dcc.Graph(id='graph-two'),
         ], className='six columns'),
     ], className='row'),
@@ -1140,11 +1428,22 @@ def layout_components(n):
     html.Div([
         html.Div([
                 html.H3(id='title3'),
+                dbc.Button('3 Months', id = 'button4_3months', n_clicks = 0, color = 'primary', outline = True),
+                dbc.Button('6 Months', id = 'button_6months', n_clicks = 0, color = 'primary',  outline = True),
+                dbc.Button('1 Year', id = 'button_1year', n_clicks = 0, color = 'primary', outline = True),
+                html.H5(id='product_specification3'),
+                html.Br(),html.Br(),
+                dbc.Button('Include Only Hardware Products', color="success", className=("m-1"), outline=True, id='button_hardware', n_clicks=0),
+                dbc.Button('Include Only Software Products', color="success", className=("m-1"), outline=True, id='button_software', n_clicks=0),
+                dbc.Button('Include All Products', color="success", className=("m-1"), outline=True, id='button_all_products', n_clicks=0),
+                html.H5(id='selected_date3'),
+                html.Br(),html.Br(),
+                dbc.Button('Top 5 Products', color="success", className=("m-1"), outline=True, id='button5_top5_products', n_clicks=0),
+                dbc.Button('Top 10 Products', color="success", className=("m-1"), outline=True, id='button6_top10_products', n_clicks=0),
+                html.H5(id='top_products3'),
+                html.Br(),html.Br(),
                 dbc.Button('Sort', color="success", className=("m-1"), outline=True, id='Sort-2', n_clicks=0),
                 dbc.Button('Totals', color="success", className=("m-1"), outline=True, id='Totals-2', n_clicks=0),
-                dbc.Button('3 Months', id = 'button4_3months', n_clicks = 0, color = 'primary', outline = True),
-                dbc.Button('6 Months', id = 'button_6months', n_clicks = 0, className = ('m-1'), color = 'success', outline = True),
-                dbc.Button('1 Year', id = 'button_1year', n_clicks = 0, className = ('m-1'), color = 'success', outline = True),
                 dcc.Graph(id='graph-three'),
 
         ], className='six columns'),
