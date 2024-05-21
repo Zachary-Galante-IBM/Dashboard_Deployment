@@ -53,7 +53,8 @@ client_data = client_data['Body'].read()
 # writing to a csv and then loading into a pandas DataFrame
 with open('All_2023_Data_PID_Info.csv','wb') as file:
     file.write(client_data)
-# New Monthly Data
+# New Monthly Data -- Repeats for each update made for 2024
+# TODO: Add the new monthly file to be pulled from cloud deployment
 jan_data = get_item('oidash-app','Jan24.csv')
 jan_monthly_data = jan_data['Body'].read()
 with open('Jan24.csv','wb') as file:
@@ -66,6 +67,10 @@ march_data = get_item('oidash-app','March_24.csv')
 march_monthly_data = march_data['Body'].read()
 with open('March_24.csv', 'wb') as file:
     file.write(march_monthly_data)
+april_data = get_item('oidash-app','April_24.csv')
+april_monthly_data = april_data['Body'].read()
+with open('April_24.csv','wb') as file:
+    file.write(april_monthly_data)
 ######################################## 
 all_data = pd.read_csv('All_2023_Data_PID_Info.csv')
 cloud_columns = list(all_data.columns)
@@ -74,11 +79,15 @@ if 'Unnamed: 0' in cloud_columns:
 jan_data_loaded = pd.read_csv('Jan24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 feb_data_loaded = pd.read_csv('Feb24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 march_data_loaded = pd.read_csv('March_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
+april_data_loaded = pd.read_csv('April_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
+# TODO: Change the loaded data date column to datetime
 jan_data_loaded['Date'] = pd.to_datetime(jan_data_loaded['Month'])
 feb_data_loaded['Date'] = pd.to_datetime(feb_data_loaded['Month'])
-march_data_loaded['Date'] = pd.to_datetime(feb_data_loaded['Month'])
+march_data_loaded['Date'] = pd.to_datetime(march_data_loaded['Month'])
+april_data_loaded['Date'] = pd.to_datetime(april_data_loaded['Month'])
 all_data['Date'] = pd.to_datetime(all_data['Month'])
-all_data = pd.concat([all_data, jan_data_loaded, feb_data_loaded, march_data_loaded])
+# TODO: Add the loaded data to be joined to the main DataFrame
+all_data = pd.concat([all_data, jan_data_loaded, feb_data_loaded, march_data_loaded, april_data_loaded])
 earliest_date = all_data['Date'].min() # earliest date 
 most_recent_date = all_data['Date'].max() # the most recent date 
 # get the dictionaries and write them to JSON files
@@ -95,27 +104,21 @@ green = green['Body'].read()
 with open('green.json','wb') as file:
     file.write(green)
 
-
-
-# changing some column names for uniformity
-#clients["Product name"]=clients["Product Name"]
-#clients["Product"]=clients["Product Name"]
-#clients["client"]=clients["Client"]
 DASH_URL_BASE_PATHNAME = "/dashboard/"
 auth = AppIDAuthProviderDash(DASH_URL_BASE_PATHNAME)
 app = dash.Dash(__name__, server = auth.flask, url_base_pathname = DASH_URL_BASE_PATHNAME, external_stylesheets=[dbc.themes.MINTY, dbc.icons.FONT_AWESOME])
 #==========================================================================================================================================
 #Import Dictionaries - Used for calculating the color for EOS status
 #RED: products and related versions that have reached end of support
-with open('red.json', 'r') as f:
+with open('Red_dict_Feb_24_final.json', 'r') as f:
   red = json.load(f)
 f.close()
 #ORANGE: products and related versions that are approaching end of support within 12 months
-with open('orange.json', 'r') as f:
+with open('Orange_dict_Feb_24_final.json', 'r') as f:
   orange = json.load(f)
 f.close()
 #GREEN: products and related versions that are approaching end of support within 12 months
-with open('green.json', 'r') as f:
+with open('Green_dict_Feb_24_final.json', 'r') as f:
   green = json.load(f)
 f.close()
 
