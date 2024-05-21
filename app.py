@@ -26,7 +26,7 @@ import datetime
 #setting up the API with the COS
 # Constants for IBM COS values
 COS_ENDPOINT = "https://s3.us-east.cloud-object-storage.appdomain.cloud" # Current list avaiable at https://control.cloud-object-storage.cloud.ibm.com/v2/endpoints
-COS_API_KEY_ID = "jUd1NEp9jsSKKOdGAStVi2muc3WegqA44HCD_ax_W1R_" # eg "W00YixxxxxxxxxxMB-odB-2ySfTrFBIQQWanc--P3byk"
+COS_API_KEY_ID = os.environ["IBM_CLOUD_APIKEY"]
 COS_INSTANCE_CRN = "crn:v1:bluemix:public:cloud-object-storage:global:a/6003dba678e9a506528e0dc3dad11d75:b75750b4-68a2-4113-af62-16c1e6e10bca::" # eg "crn:v1:bluemix:public:cloud-object-storage:global:a/3bf0d9003xxxxxxxxxx1c3e97696b71c:d6f04d83-6c4f-4a62-a165-696756d63903::"
 # Create resource
 cos = ibm_boto3.resource("s3",
