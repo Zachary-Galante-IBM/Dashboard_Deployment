@@ -26,8 +26,8 @@ import datetime
 #setting up the API with the COS
 # Constants for IBM COS values
 COS_ENDPOINT = "https://s3.us-east.cloud-object-storage.appdomain.cloud" # Current list avaiable at https://control.cloud-object-storage.cloud.ibm.com/v2/endpoints
-COS_API_KEY_ID = os.environ["IBM_CLOUD_APIKEY"]
-COS_INSTANCE_CRN = "crn:v1:bluemix:public:cloud-object-storage:global:a/6003dba678e9a506528e0dc3dad11d75:b75750b4-68a2-4113-af62-16c1e6e10bca::" # eg "crn:v1:bluemix:public:cloud-object-storage:global:a/3bf0d9003xxxxxxxxxx1c3e97696b71c:d6f04d83-6c4f-4a62-a165-696756d63903::"
+COS_API_KEY_ID = os.environ["APPID_COS_API_KEY"]
+COS_INSTANCE_CRN = "crn:v1:bluemix:public:cloud-object-storage:global:a/6003dba678e9a506528e0dc3dad11d75:b75750b4-68a2-4113-af62-16c1e6e10bca::"
 # Create resource
 cos = ibm_boto3.resource("s3",
     ibm_api_key_id=COS_API_KEY_ID,
@@ -110,15 +110,15 @@ app = dash.Dash(__name__, server = auth.flask, url_base_pathname = DASH_URL_BASE
 #==========================================================================================================================================
 #Import Dictionaries - Used for calculating the color for EOS status
 #RED: products and related versions that have reached end of support
-with open('Red_dict_Feb_24_final.json', 'r') as f:
+with open('red.json', 'r') as f:
   red = json.load(f)
 f.close()
 #ORANGE: products and related versions that are approaching end of support within 12 months
-with open('Orange_dict_Feb_24_final.json', 'r') as f:
+with open('orange.json', 'r') as f:
   orange = json.load(f)
 f.close()
 #GREEN: products and related versions that are approaching end of support within 12 months
-with open('Green_dict_Feb_24_final.json', 'r') as f:
+with open('green.json', 'r') as f:
   green = json.load(f)
 f.close()
 
