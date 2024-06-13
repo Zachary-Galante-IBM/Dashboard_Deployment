@@ -27,7 +27,7 @@ import datetime
 # Constants for IBM COS values
 COS_ENDPOINT = "https://s3.us-east.cloud-object-storage.appdomain.cloud" # Current list avaiable at https://control.cloud-object-storage.cloud.ibm.com/v2/endpoints
 COS_API_KEY_ID = os.environ["APPID_COS_API_KEY"]
-COS_INSTANCE_CRN = "crn:v1:bluemix:public:cloud-object-storage:global:a/6003dba678e9a506528e0dc3dad11d75:b75750b4-68a2-4113-af62-16c1e6e10bca::"
+COS_INSTANCE_CRN = "crn:v1:bluemix:public:cloud-object-storage:global:a/6003dba678e9a506528e0dc3dad11d75:b75750b4-68a2-4113-af62-16c1e6e10bca::" # eg "crn:v1:bluemix:public:cloud-object-storage:global:a/3bf0d9003xxxxxxxxxx1c3e97696b71c:d6f04d83-6c4f-4a62-a165-696756d63903::"
 # Create resource
 cos = ibm_boto3.resource("s3",
     ibm_api_key_id=COS_API_KEY_ID,
@@ -44,7 +44,8 @@ def get_item(bucket_name, item_name):
         print("CLIENT ERROR: {0}\n".format(be))
     except Exception as e:
         print("Unable to retrieve file contents: {0}".format(e))
-    return file
+    if file:
+        return file
 
 ######### FOR CLOUD DEPLOYMENT ########
 # getting the contents of the file from the COS
@@ -71,6 +72,10 @@ april_data = get_item('oidash-app','April_24.csv')
 april_monthly_data = april_data['Body'].read()
 with open('April_24.csv','wb') as file:
     file.write(april_monthly_data)
+may_data = get_item('oidash-app','May_24.csv')
+may_monthly_data = may_data['Body'].read()
+with open('May_24.csv','wb') as file:
+    file.write(may_monthly_data)
 ######################################## 
 all_data = pd.read_csv('All_2023_Data_PID_Info.csv')
 cloud_columns = list(all_data.columns)
@@ -80,26 +85,28 @@ jan_data_loaded = pd.read_csv('Jan24.csv',  encoding='UTF-16', sep='\t',on_bad_l
 feb_data_loaded = pd.read_csv('Feb24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 march_data_loaded = pd.read_csv('March_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 april_data_loaded = pd.read_csv('April_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
+may_data_loaded = pd.read_csv('May_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 # TODO: Change the loaded data date column to datetime
 jan_data_loaded['Date'] = pd.to_datetime(jan_data_loaded['Month'])
 feb_data_loaded['Date'] = pd.to_datetime(feb_data_loaded['Month'])
 march_data_loaded['Date'] = pd.to_datetime(march_data_loaded['Month'])
 april_data_loaded['Date'] = pd.to_datetime(april_data_loaded['Month'])
+may_data_loaded['Date'] = pd.to_datetime(may_data_loaded['Month'])
 all_data['Date'] = pd.to_datetime(all_data['Month'])
 # TODO: Add the loaded data to be joined to the main DataFrame
-all_data = pd.concat([all_data, jan_data_loaded, feb_data_loaded, march_data_loaded, april_data_loaded])
+all_data = pd.concat([all_data, jan_data_loaded, feb_data_loaded, march_data_loaded, april_data_loaded, may_data_loaded])
 earliest_date = all_data['Date'].min() # earliest date 
 most_recent_date = all_data['Date'].max() # the most recent date 
 # get the dictionaries and write them to JSON files
-red = get_item('oidash-app','Red_dict_Feb_24_final.json')
+red = get_item('oidash-app','Red_dict_May_24_final.json')
 red = red['Body'].read()
 with open('red.json','wb') as file:
     file.write(red)
-orange = get_item('oidash-app','Orange_dict_Feb_24_final.json')
+orange = get_item('oidash-app','Orange_dict_May_24_final.json')
 orange = orange['Body'].read()
 with open('orange.json','wb') as file:
     file.write(orange)
-green = get_item('oidash-app','Green_dict_Feb_24_final.json')
+green = get_item('oidash-app','Green_dict_May_24_final.json')
 green = green['Body'].read()
 with open('green.json','wb') as file:
     file.write(green)
@@ -110,15 +117,15 @@ app = dash.Dash(__name__, server = auth.flask, url_base_pathname = DASH_URL_BASE
 #==========================================================================================================================================
 #Import Dictionaries - Used for calculating the color for EOS status
 #RED: products and related versions that have reached end of support
-with open('red.json', 'r') as f:
+with open('Red_dict_Feb_24_final.json', 'r') as f:
   red = json.load(f)
 f.close()
 #ORANGE: products and related versions that are approaching end of support within 12 months
-with open('orange.json', 'r') as f:
+with open('Orange_dict_Feb_24_final.json', 'r') as f:
   orange = json.load(f)
 f.close()
 #GREEN: products and related versions that are approaching end of support within 12 months
-with open('green.json', 'r') as f:
+with open('Green_dict_Feb_24_final.json', 'r') as f:
   green = json.load(f)
 f.close()
 
