@@ -117,15 +117,15 @@ app = dash.Dash(__name__, server = auth.flask, url_base_pathname = DASH_URL_BASE
 #==========================================================================================================================================
 #Import Dictionaries - Used for calculating the color for EOS status
 #RED: products and related versions that have reached end of support
-with open('Red_dict_Feb_24_final.json', 'r') as f:
+with open('Red_dict_May_24_final.json', 'r') as f:
   red = json.load(f)
 f.close()
 #ORANGE: products and related versions that are approaching end of support within 12 months
-with open('Orange_dict_Feb_24_final.json', 'r') as f:
+with open('Orange_dict_May_24_final.json', 'r') as f:
   orange = json.load(f)
 f.close()
 #GREEN: products and related versions that are approaching end of support within 12 months
-with open('Green_dict_Feb_24_final.json', 'r') as f:
+with open('Green_dict_May_24_final.json', 'r') as f:
   green = json.load(f)
 f.close()
 
