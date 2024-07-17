@@ -76,8 +76,16 @@ may_data = get_item('oidash-app','May_24.csv')
 may_monthly_data = may_data['Body'].read()
 with open('May_24.csv','wb') as file:
     file.write(may_monthly_data)
+june_data = get_item('oidash-app','June_24.csv')
+june_monthly_data = june_data['Body'].read()
+with open('June_24.csv','wb') as file:
+    file.write(june_monthly_data)
 ######################################## 
 all_data = pd.read_csv('All_2023_Data_PID_Info.csv')
+# copy of the dataframe to get the pidname info 
+product_name_info  = all_data[all_data['pidname'].notna()]
+product_name_info = product_name_info[['Product Name', 'pidname']]
+pidname_mapping_table = product_name_info.drop_duplicates(subset= 'Product Name')
 cloud_columns = list(all_data.columns)
 if 'Unnamed: 0' in cloud_columns:
     all_data.drop(columns = ['Unnamed: 0'], inplace = True)
@@ -86,17 +94,24 @@ feb_data_loaded = pd.read_csv('Feb24.csv',  encoding='UTF-16', sep='\t',on_bad_l
 march_data_loaded = pd.read_csv('March_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 april_data_loaded = pd.read_csv('April_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 may_data_loaded = pd.read_csv('May_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
+june_data_loaded = pd.read_csv('June_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 # TODO: Change the loaded data date column to datetime
 jan_data_loaded['Date'] = pd.to_datetime(jan_data_loaded['Month'])
 feb_data_loaded['Date'] = pd.to_datetime(feb_data_loaded['Month'])
 march_data_loaded['Date'] = pd.to_datetime(march_data_loaded['Month'])
 april_data_loaded['Date'] = pd.to_datetime(april_data_loaded['Month'])
 may_data_loaded['Date'] = pd.to_datetime(may_data_loaded['Month'])
+june_data_loaded['Date'] = pd.to_datetime(june_data_loaded['Month'])
 all_data['Date'] = pd.to_datetime(all_data['Month'])
 # TODO: Add the loaded data to be joined to the main DataFrame
-all_data = pd.concat([all_data, jan_data_loaded, feb_data_loaded, march_data_loaded, april_data_loaded, may_data_loaded])
+all_data = pd.concat([all_data, jan_data_loaded, feb_data_loaded, march_data_loaded, april_data_loaded, may_data_loaded, june_data_loaded])
 earliest_date = all_data['Date'].min() # earliest date 
 most_recent_date = all_data['Date'].max() # the most recent date 
+# merging the pidname info 
+all_data = all_data.merge(pidname_mapping_table, how = 'left', on  = 'Product Name')
+all_data.drop(columns = ['pidname_x'], inplace = True )
+all_data.rename(columns = {'pidname_y' : 'pidname'} ,inplace = True)
+# joining the pid info back to the new data 
 # get the dictionaries and write them to JSON files
 red = get_item('oidash-app','Red_dict_May_24_final.json')
 red = red['Body'].read()
@@ -128,7 +143,28 @@ f.close()
 with open('green.json', 'r') as f:
   green = json.load(f)
 f.close()
-
+product_lifecycle_data = pd.read_csv('ibm_product_lifecycle_list.csv')
+pid_grouped  =product_lifecycle_data[['IBM Product', 'PID']].groupby('PID')['IBM Product'].apply(list).reset_index()
+for product_list in pid_grouped['IBM Product']:
+    red_versions = []
+    green_versions = []
+    orange_versions = []
+    for product_name in product_list:
+        if product_name in list(red.keys()):
+            red_versions.append(red[product_name])
+        if product_name in list(green.keys()):
+            green_versions.append(green[product_name])
+        if product_name in list(orange.keys()):
+            orange_versions.append(orange[product_name])
+        red_versions_new = [item for sublist in red_versions for item in sublist]
+        green_versions_new = [item for sublist in green_versions for item in sublist]
+        orange_versions_new = [item for sublist in orange_versions for item in sublist]
+        if len(red_versions) > 0:
+            red[product_name] = list(set(red_versions_new))
+        if len(green_versions) > 0:
+            green[product_name] = list(set(green_versions_new))
+        if len(orange_versions) > 0:
+            orange[product_name] = list(set(orange_versions_new))
 # changing how some specific products are represented in the dictionary 
 if 'PowerVM VIOS Enterprise Edition' in list(red.keys()):
     red['PowerVM / VIOS'] = red['PowerVM VIOS Enterprise Edition'] 
