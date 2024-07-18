@@ -80,6 +80,10 @@ june_data = get_item('oidash-app','June_24.csv')
 june_monthly_data = june_data['Body'].read()
 with open('June_24.csv','wb') as file:
     file.write(june_monthly_data)
+lifecycle_data_cloud = get_item('oidash-app','ibm_product_lifecycle_list.csv')
+lifecycle_data = lifecycle_data_cloud['Body'].read()
+with open('ibm_product_lifecycle_list.csv','wb') as file:
+    file.write(lifecycle_data)
 ######################################## 
 all_data = pd.read_csv('All_2023_Data_PID_Info.csv')
 # copy of the dataframe to get the pidname info 
