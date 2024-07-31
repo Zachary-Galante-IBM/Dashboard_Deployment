@@ -745,17 +745,17 @@ download_component = dcc.Download()
     Input('graph-one', 'restyleData'),#user input to detect interaction of legend
     Input('Sort-1', 'n_clicks'),
     Input('Totals-1', 'n_clicks'),
-    Input('button_6months', 'n_clicks'), # buttons to represent the date range
-    Input('button4_3months', 'n_clicks'),
-    Input('button_1year', 'n_clicks'),
-    Input('button5_top5_products', 'n_clicks'),
-    Input('button6_top10_products', 'n_clicks'),
-    Input('button_hardware', 'n_clicks'),
-    Input('button_software', 'n_clicks'),
-    Input('button_all_products', 'n_clicks')
+    #Input('button_6months', 'n_clicks'), # buttons to represent the date range
+    #Input('button4_3months', 'n_clicks'),
+    #Input('button_1year', 'n_clicks'),
+    #Input('button5_top5_products', 'n_clicks'),
+    #Input('button6_top10_products', 'n_clicks'),
+    #Input('button_hardware', 'n_clicks'),
+    #Input('button_software', 'n_clicks'),
+    #Input('button_all_products', 'n_clicks')
 
 )
-def update_graph1(selected_client, click, sort_button, totals_button, button_6months,  button_1year, button4_3months, button5_top5_products, button6_top10_products, button_hardware, button_software, button_all_products):
+def update_graph1(selected_client, click, sort_button, totals_button ):
     """
     returns a bar graph of product open tickets and their severity
     for selected client represented by values 1-4
@@ -893,16 +893,16 @@ def update_graph1(selected_client, click, sort_button, totals_button, button_6mo
     Input(component_id=geo_dropdown, component_property='value'),#value of client selcted form dropdown
     Input('graph-two', 'restyleData'),#user input to detect interaction of legend
     Input('Versions', 'n_clicks'),#versions button and number of clicks
-    Input('button_6months', 'n_clicks'), # buttons to represent the date range
-    Input('button4_3months', 'n_clicks'),
-    Input('button_1year', 'n_clicks'),
-    Input('button5_top5_products', 'n_clicks'),
-    Input('button6_top10_products', 'n_clicks'),
-    Input('button_hardware', 'n_clicks'),
-    Input('button_software', 'n_clicks'),
-    Input('button_all_products', 'n_clicks')
+    #Input('button_6months', 'n_clicks'), # buttons to represent the date range
+    #Input('button4_3months', 'n_clicks'),
+    #Input('button_1year', 'n_clicks'),
+    #Input('button5_top5_products', 'n_clicks'),
+    #Input('button6_top10_products', 'n_clicks'),
+    #Input('button_hardware', 'n_clicks'),
+    #Input('button_software', 'n_clicks'),
+    #Input('button_all_products', 'n_clicks')
 )
-def update_graph2(selected_client, click, versions_button, button_6months,  button_1year, button4_3months, button5_top5_products, button6_top10_products, button_hardware, button_software, button_all_products):
+def update_graph2(selected_client, click, versions_button):
     """
     Returns a scatter plot graph of open tickets based on
     ticket count and color coordinated based on End of Support
@@ -1092,16 +1092,16 @@ def update_graph2(selected_client, click, versions_button, button_6months,  butt
     Input('graph-three', 'restyleData'),#user input to detect interaction of legend
     Input('Sort-2', 'n_clicks'),#sort button and number of clicks
     Input('Totals-2', 'n_clicks'),#totals button and number of clicks
-    Input('button_6months', 'n_clicks'), # buttons to represent the date range
-    Input('button4_3months', 'n_clicks'),
-    Input('button_1year', 'n_clicks'),
-    Input('button5_top5_products', 'n_clicks'),
-    Input('button6_top10_products', 'n_clicks'),
-    Input('button_hardware', 'n_clicks'),
-    Input('button_software', 'n_clicks'),
-    Input('button_all_products', 'n_clicks')
+    #Input('button_6months', 'n_clicks'), # buttons to represent the date range
+    #Input('button4_3months', 'n_clicks'),
+    #Input('button_1year', 'n_clicks'),
+    #Input('button5_top5_products', 'n_clicks'),
+    #Input('button6_top10_products', 'n_clicks'),
+    #Input('button_hardware', 'n_clicks'),
+    #Input('button_software', 'n_clicks'),
+    #Input('button_all_products', 'n_clicks')
 )
-def update_graph3(selected_client,click,sort_button,totals_button, button_6months,  button_1year, button4_3months,  button5_top5_products, button6_top10_products, button_hardware, button_software, button_all_products):
+def update_graph3(selected_client,click,sort_button,totals_button):
     """
     Returns Bar graph of open tickets based on product count
     and categorized by Defect or How to Questions.
@@ -1172,6 +1172,7 @@ def update_graph3(selected_client,click,sort_button,totals_button, button_6month
             'x':0,
             'xanchor': 'left',
             'yanchor': 'top'})
+    
 
     #annotations for dashboard
     graph3_processed_data["totals"]=graph3_processed_data["How To"].fillna(0)+graph3_processed_data["Defects"].fillna(0)
@@ -1334,7 +1335,7 @@ def update_output(selected_client):
     return title1, title2, title3
 
 # get the button selections for all buttons
-
+"""
 @app.callback(
     # Date Selection LABELS 
     Output('selected_date1', 'children'),
@@ -1386,12 +1387,13 @@ def return_parameter_labels(button_6months,  button_1year, button4_3months, butt
         top_products1, top_products2, top_products3 = 'Top Products Selected: Top 10 Products', 'Top Products Selected: Top 10 Products', 'Top Products Selected: Top 10 Products'
 
     return product_specification1, product_specification2, product_specification3, selected_date1, selected_date2, selected_date3, top_products1 , top_products2, top_products3
+"""
 #==========================================================================================================================================
 #HTML Layout
 FA_icon = html.I(className="fa-solid fa-cloud-arrow-down me-2")
 subtitle = 'Data from March 2022 through June 2023'
 disclaimer = 'Disclaimer: Products without version information may appear in graphs 1 and 3, but not graph 2'
-specification_disclaimer = '*** Please Note: Current Deployment Limits Exports to 1 Filter Parameter ***'
+#specification_disclaimer = '*** Please Note: Current Deployment Limits Exports to 1 Filter Parameter ***'
 app.layout = html.Div([
     html.Div(id = "page-content"),
     dcc.Interval(id = "auth-check-interval", interval = 3600 * 1000)
@@ -1426,21 +1428,21 @@ def layout_components(n):
             dcc.Download(id="download-data"),
             html.Br(),html.Br(),
             html.H3(id='title1'),
-            html.H5(specification_disclaimer),
-            dbc.Button('3 Months', id = 'button4_3months', n_clicks = 0, color = 'primary', outline = True),
-            dbc.Button('6 Months', id = 'button_6months', n_clicks = 0, color = 'primary',  outline = True),
-            dbc.Button('1 Year', id = 'button_1year', n_clicks = 0, color = 'primary', outline = True),
-            html.H5(id='product_specification1'),
-            html.Br(),html.Br(),
-            dbc.Button('Include Only Hardware Products', color="success", className=("m-1"), outline=True, id='button_hardware', n_clicks=0),
-            dbc.Button('Include Only Software Products', color="success", className=("m-1"), outline=True, id='button_software', n_clicks=0),
-            dbc.Button('Include All Products', color="success", className=("m-1"), outline=True, id='button_all_products', n_clicks=0),
-            html.H5(id='selected_date1'),
-            html.Br(),html.Br(),
-            dbc.Button('Top 5 Products', color="success", className=("m-1"), outline=True, id='button5_top5_products', n_clicks=0),
-            dbc.Button('Top 10 Products', color="success", className=("m-1"), outline=True, id='button6_top10_products', n_clicks=0),
-            html.H5(id='top_products1'),
-            html.Br(),html.Br(),
+            #html.H5(specification_disclaimer),
+            #dbc.Button('3 Months', id = 'button4_3months', n_clicks = 0, color = 'primary', outline = True),
+            #dbc.Button('6 Months', id = 'button_6months', n_clicks = 0, color = 'primary',  outline = True),
+            #dbc.Button('1 Year', id = 'button_1year', n_clicks = 0, color = 'primary', outline = True),
+            #html.H5(id='product_specification1'),
+            #html.Br(),html.Br(),
+            #dbc.Button('Include Only Hardware Products', color="success", className=("m-1"), outline=True, id='button_hardware', n_clicks=0),
+            #dbc.Button('Include Only Software Products', color="success", className=("m-1"), outline=True, id='button_software', n_clicks=0),
+            #dbc.Button('Include All Products', color="success", className=("m-1"), outline=True, id='button_all_products', n_clicks=0),
+            #html.H5(id='selected_date1'),
+            #html.Br(),html.Br(),
+            #dbc.Button('Top 5 Products', color="success", className=("m-1"), outline=True, id='button5_top5_products', n_clicks=0),
+            #dbc.Button('Top 10 Products', color="success", className=("m-1"), outline=True, id='button6_top10_products', n_clicks=0),
+            #html.H5(id='top_products1'),
+            #html.Br(),html.Br(),
             dbc.Button('Sort', color="success", className=("m-1"), outline=True, id='Sort-1', n_clicks=0),
             dbc.Button('Totals', color="success", className=("m-1"), outline=True, id='Totals-1', n_clicks=0),
             dcc.Graph(id='graph-one', style={'overflowX': 'scroll'}),
@@ -1455,20 +1457,20 @@ def layout_components(n):
                 html.Br(),
                 html.H3(id='title2'),
                 html.H5(disclaimer),
-                dbc.Button('3 Months', id = 'button4_3months', n_clicks = 0, color = 'primary', outline = True),
-                dbc.Button('6 Months', id = 'button_6months', n_clicks = 0, color = 'primary',  outline = True),
-                dbc.Button('1 Year', id = 'button_1year', n_clicks = 0, color = 'primary', outline = True),
-                html.H5(id='product_specification2'),
-                html.Br(),
-                dbc.Button('Include Only Hardware Products', color="success", className=("m-1"), outline=True, id='button_hardware', n_clicks=0),
-                dbc.Button('Include Only Software Products', color="success", className=("m-1"), outline=True, id='button_software', n_clicks=0),
-                dbc.Button('Include All Products', color="success", className=("m-1"), outline=True, id='button_all_products', n_clicks=0),
-                html.H5(id='selected_date2'),
-                html.Br(),
-                dbc.Button('Top 5 Products', color="success", className=("m-1"), outline=True, id='button5_top5_products', n_clicks=0),
-                dbc.Button('Top 10 Products', color="success", className=("m-1"), outline=True, id='button6_top10_products', n_clicks=0),
-                html.H5(id='top_products2'),
-                html.Br(),
+                #dbc.Button('3 Months', id = 'button4_3months', n_clicks = 0, color = 'primary', outline = True),
+                #dbc.Button('6 Months', id = 'button_6months', n_clicks = 0, color = 'primary',  outline = True),
+                #dbc.Button('1 Year', id = 'button_1year', n_clicks = 0, color = 'primary', outline = True),
+                #html.H5(id='product_specification2'),
+                #html.Br(),
+                #dbc.Button('Include Only Hardware Products', color="success", className=("m-1"), outline=True, id='button_hardware', n_clicks=0),
+                #dbc.Button('Include Only Software Products', color="success", className=("m-1"), outline=True, id='button_software', n_clicks=0),
+                #dbc.Button('Include All Products', color="success", className=("m-1"), outline=True, id='button_all_products', n_clicks=0),
+                #html.H5(id='selected_date2'),
+                #html.Br(),
+                #dbc.Button('Top 5 Products', color="success", className=("m-1"), outline=True, id='button5_top5_products', n_clicks=0),
+                #dbc.Button('Top 10 Products', color="success", className=("m-1"), outline=True, id='button6_top10_products', n_clicks=0),
+                #html.H5(id='top_products2'),
+                #html.Br(),
                 dbc.Button('Version ID', color="success", className=("m-1"), outline=True, id='Versions', n_clicks=0),
                 dcc.Graph(id='graph-two'),
         ], className='six columns'),
@@ -1478,20 +1480,20 @@ def layout_components(n):
     html.Div([
         html.Div([
                 html.H3(id='title3'),
-                dbc.Button('3 Months', id = 'button4_3months', n_clicks = 0, color = 'primary', outline = True),
-                dbc.Button('6 Months', id = 'button_6months', n_clicks = 0, color = 'primary',  outline = True),
-                dbc.Button('1 Year', id = 'button_1year', n_clicks = 0, color = 'primary', outline = True),
-                html.H5(id='product_specification3'),
-                html.Br(),html.Br(),
-                dbc.Button('Include Only Hardware Products', color="success", className=("m-1"), outline=True, id='button_hardware', n_clicks=0),
-                dbc.Button('Include Only Software Products', color="success", className=("m-1"), outline=True, id='button_software', n_clicks=0),
-                dbc.Button('Include All Products', color="success", className=("m-1"), outline=True, id='button_all_products', n_clicks=0),
-                html.H5(id='selected_date3'),
-                html.Br(),html.Br(),
-                dbc.Button('Top 5 Products', color="success", className=("m-1"), outline=True, id='button5_top5_products', n_clicks=0),
-                dbc.Button('Top 10 Products', color="success", className=("m-1"), outline=True, id='button6_top10_products', n_clicks=0),
-                html.H5(id='top_products3'),
-                html.Br(),html.Br(),
+                #dbc.Button('3 Months', id = 'button4_3months', n_clicks = 0, color = 'primary', outline = True),
+                #dbc.Button('6 Months', id = 'button_6months', n_clicks = 0, color = 'primary',  outline = True),
+                #dbc.Button('1 Year', id = 'button_1year', n_clicks = 0, color = 'primary', outline = True),
+                #html.H5(id='product_specification3'),
+                #html.Br(),html.Br(),
+                #dbc.Button('Include Only Hardware Products', color="success", className=("m-1"), outline=True, id='button_hardware', n_clicks=0),
+                #dbc.Button('Include Only Software Products', color="success", className=("m-1"), outline=True, id='button_software', n_clicks=0),
+                #dbc.Button('Include All Products', color="success", className=("m-1"), outline=True, id='button_all_products', n_clicks=0),
+                #html.H5(id='selected_date3'),
+                #html.Br(),html.Br(),
+                #dbc.Button('Top 5 Products', color="success", className=("m-1"), outline=True, id='button5_top5_products', n_clicks=0),
+                #dbc.Button('Top 10 Products', color="success", className=("m-1"), outline=True, id='button6_top10_products', n_clicks=0),
+                #html.H5(id='top_products3'),
+                #html.Br(),html.Br(),
                 dbc.Button('Sort', color="success", className=("m-1"), outline=True, id='Sort-2', n_clicks=0),
                 dbc.Button('Totals', color="success", className=("m-1"), outline=True, id='Totals-2', n_clicks=0),
                 dcc.Graph(id='graph-three'),
