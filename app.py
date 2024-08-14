@@ -80,6 +80,10 @@ june_data = get_item('oidash-app','June_24.csv')
 june_monthly_data = june_data['Body'].read()
 with open('June_24.csv','wb') as file:
     file.write(june_monthly_data)
+july_data = get_item('oidash-app','July_24.csv')
+july_monthly_data = july_data['Body'].read()
+with open('July_24.csv','wb') as file:
+    file.write(july_monthly_data)
 lifecycle_data_cloud = get_item('oidash-app','ibm_product_lifecycle_list.csv')
 lifecycle_data = lifecycle_data_cloud['Body'].read()
 with open('ibm_product_lifecycle_list.csv','wb') as file:
@@ -99,6 +103,7 @@ march_data_loaded = pd.read_csv('March_24.csv',  encoding='UTF-16', sep='\t',on_
 april_data_loaded = pd.read_csv('April_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 may_data_loaded = pd.read_csv('May_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 june_data_loaded = pd.read_csv('June_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
+july_data_loaded = pd.read_csv('July_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 # TODO: Change the loaded data date column to datetime
 jan_data_loaded['Date'] = pd.to_datetime(jan_data_loaded['Month'])
 feb_data_loaded['Date'] = pd.to_datetime(feb_data_loaded['Month'])
@@ -106,9 +111,10 @@ march_data_loaded['Date'] = pd.to_datetime(march_data_loaded['Month'])
 april_data_loaded['Date'] = pd.to_datetime(april_data_loaded['Month'])
 may_data_loaded['Date'] = pd.to_datetime(may_data_loaded['Month'])
 june_data_loaded['Date'] = pd.to_datetime(june_data_loaded['Month'])
+july_data_loaded['Date'] = pd.to_datetime(july_data_loaded['Month'])
 all_data['Date'] = pd.to_datetime(all_data['Month'])
 # TODO: Add the loaded data to be joined to the main DataFrame
-all_data = pd.concat([all_data, jan_data_loaded, feb_data_loaded, march_data_loaded, april_data_loaded, may_data_loaded, june_data_loaded])
+all_data = pd.concat([all_data, jan_data_loaded, feb_data_loaded, march_data_loaded, april_data_loaded, may_data_loaded, june_data_loaded, july_data_loaded])
 earliest_date = all_data['Date'].min() # earliest date 
 most_recent_date = all_data['Date'].max() # the most recent date 
 # merging the pidname info 
@@ -1158,7 +1164,8 @@ def update_graph3(selected_client,click,sort_button,totals_button):
 
     #create base graph
     x=graph3_processed_data['Product Name']
-    fig3 = go.Figure(go.Bar(x=x, y=graph3_processed_data['How To'], name='How To Questions',text=graph3_processed_data['How To'],textposition='inside'))
+    graph3_processed_data.rename(columns= {'How To' : 'Non-Defect'}, inplace = True )
+    fig3 = go.Figure(go.Bar(x=x, y=graph3_processed_data['Non-Defect'], name='Non-Defect',text=graph3_processed_data['Non-Defect'],textposition='inside'))
     fig3.add_trace(go.Bar(x=x, y=graph3_processed_data['Defects'], name='Defects',text=graph3_processed_data['Defects'],textposition='inside'))
 
     #update graph layout
@@ -1175,13 +1182,13 @@ def update_graph3(selected_client,click,sort_button,totals_button):
     
 
     #annotations for dashboard
-    graph3_processed_data["totals"]=graph3_processed_data["How To"].fillna(0)+graph3_processed_data["Defects"].fillna(0)
+    graph3_processed_data["totals"]=graph3_processed_data["Non-Defect"].fillna(0)+graph3_processed_data["Defects"].fillna(0)
     #annotations for html download
     html_totals = graph3_processed_data["totals"]
 
     #update legend visibility based on global variale upon reupdate
     first = True
-    options = ["How To","Defects"]
+    options = ["Non-Defect","Defects"]
     for i in range(len(legend3)):
         fig3.data[i].visible = legend3[i]
         if legend3[i] == True and first == True:
