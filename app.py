@@ -1,7 +1,7 @@
 #Import Libraries
 import dash
 from dash import Dash, html, Input, Output, ctx,dcc
-from dash.dependencies import Output, Input
+from dash.dependencies import Output, Input, State
 import dash_bootstrap_components as dbc
 from natsort import natsort_keygen
 import plotly
@@ -22,6 +22,10 @@ import json
 import re
 from auth_dash import AppIDAuthProviderDash
 import datetime
+#from wordcloud import WordCloud, STOPWORDS
+from flask import jsonify, send_file, Flask
+import base64
+from io import BytesIO
 #import client data
 #setting up the API with the COS
 # Constants for IBM COS values
@@ -84,10 +88,14 @@ july_data = get_item('oidash-app','July_24.csv')
 july_monthly_data = july_data['Body'].read()
 with open('July_24.csv','wb') as file:
     file.write(july_monthly_data)
+august_data = get_item('oidash-app','August_24.csv')
+august_monthly_data = august_data['Body'].read()
+with open('August_24.csv','wb') as file:
+    file.write(august_monthly_data)
 lifecycle_data_cloud = get_item('oidash-app','ibm_product_lifecycle_list.csv')
 lifecycle_data = lifecycle_data_cloud['Body'].read()
 with open('ibm_product_lifecycle_list.csv','wb') as file:
-    file.write(lifecycle_data)
+    file.write(lifecycle_data) 
 ######################################## 
 all_data = pd.read_csv('All_2023_Data_PID_Info.csv')
 # copy of the dataframe to get the pidname info 
@@ -104,6 +112,7 @@ april_data_loaded = pd.read_csv('April_24.csv',  encoding='UTF-16', sep='\t',on_
 may_data_loaded = pd.read_csv('May_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 june_data_loaded = pd.read_csv('June_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 july_data_loaded = pd.read_csv('July_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
+august_data_loaded = pd.read_csv('August_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 # TODO: Change the loaded data date column to datetime
 jan_data_loaded['Date'] = pd.to_datetime(jan_data_loaded['Month'])
 feb_data_loaded['Date'] = pd.to_datetime(feb_data_loaded['Month'])
@@ -112,9 +121,10 @@ april_data_loaded['Date'] = pd.to_datetime(april_data_loaded['Month'])
 may_data_loaded['Date'] = pd.to_datetime(may_data_loaded['Month'])
 june_data_loaded['Date'] = pd.to_datetime(june_data_loaded['Month'])
 july_data_loaded['Date'] = pd.to_datetime(july_data_loaded['Month'])
+august_data_loaded['Date'] = pd.to_datetime(august_data_loaded['Month'])
 all_data['Date'] = pd.to_datetime(all_data['Month'])
 # TODO: Add the loaded data to be joined to the main DataFrame
-all_data = pd.concat([all_data, jan_data_loaded, feb_data_loaded, march_data_loaded, april_data_loaded, may_data_loaded, june_data_loaded, july_data_loaded])
+all_data = pd.concat([all_data, jan_data_loaded, feb_data_loaded, march_data_loaded, april_data_loaded, may_data_loaded, june_data_loaded, july_data_loaded, august_data_loaded])
 earliest_date = all_data['Date'].min() # earliest date 
 most_recent_date = all_data['Date'].max() # the most recent date 
 # merging the pidname info 
@@ -135,7 +145,7 @@ green = get_item('oidash-app','Green_dict_May_24_final.json')
 green = green['Body'].read()
 with open('green.json','wb') as file:
     file.write(green)
-
+server = Flask(__name__)
 DASH_URL_BASE_PATHNAME = "/dashboard/"
 auth = AppIDAuthProviderDash(DASH_URL_BASE_PATHNAME)
 app = dash.Dash(__name__, server = auth.flask, url_base_pathname = DASH_URL_BASE_PATHNAME, external_stylesheets=[dbc.themes.MINTY, dbc.icons.FONT_AWESOME])
@@ -733,6 +743,8 @@ def graph_data_prep(selected_client, data, graph_num,  start_interval = None, pr
 
 geo_dropdown = dcc.Dropdown(options=all_data['Global Buying Group Name'].unique(),value='METLIFE')
 
+
+
 global legend1#keep track of which items in legend are selected upon update for graph 1
 legend1 = [True,True,True,True]
 
@@ -742,26 +754,24 @@ legend2 = [True,True,True,True]
 global legend3#keep track of which items in legend are selected upon update for graph 2
 legend3 = [True,True]
 
+
 download_component = dcc.Download()
 
 @app.callback(
     Output(component_id='graph-one', component_property='figure'),
-    #Output(component_id= 'date_label', component_property= 'value'),
     Input(component_id=geo_dropdown, component_property='value'),
     Input('graph-one', 'restyleData'),#user input to detect interaction of legend
     Input('Sort-1', 'n_clicks'),
     Input('Totals-1', 'n_clicks'),
-    #Input('button_6months', 'n_clicks'), # buttons to represent the date range
-    #Input('button4_3months', 'n_clicks'),
-    #Input('button_1year', 'n_clicks'),
-    #Input('button5_top5_products', 'n_clicks'),
-    #Input('button6_top10_products', 'n_clicks'),
-    #Input('button_hardware', 'n_clicks'),
-    #Input('button_software', 'n_clicks'),
-    #Input('button_all_products', 'n_clicks')
-
+    Input('submit_button', 'n_clicks'),
+    Input('clear_filters_button', 'n_clicks'),
+    State('product_group', 'value'),
+    State('top_products_dropdown', 'value'),
+    State('date_dropdown', 'value'),
 )
-def update_graph1(selected_client, click, sort_button, totals_button ):
+
+
+def update_graph1(selected_client, click, sort_button, totals_button, submit_button_clicks, clear_filters_button, product_group_selection, top_products_selection, date_dropdown_selection):
     """
     returns a bar graph of product open tickets and their severity
     for selected client represented by values 1-4
@@ -774,30 +784,42 @@ def update_graph1(selected_client, click, sort_button, totals_button ):
             legend1[num] = True
         else: legend1[num] = vis
 
-    if 'button_hardware' == ctx.triggered_id:
-        product_type = 'Hardware'
-    elif 'button_software' == ctx.triggered_id:
-        product_type = 'Software'
-    elif 'button_all_products' == ctx.triggered_id:
-        product_type = None
-    else:
+    product_type = None
+    interval_start = None
+    if submit_button_clicks > 0:
+        # checks state for the date buttons
+        if date_dropdown_selection == '3 Months':
+            interval_start = timedelta(days = 91) # data for the last 3 months
+        elif date_dropdown_selection == '6 Months':
+            interval_start = timedelta(days = 182) # data for last 6 months 
+        elif date_dropdown_selection == '1 year':
+            interval_start = timedelta(days = 365) # data for last 1 year 
+        # checks state for the product specification
+        if product_group_selection == 'Hardware':
+            product_type = 'Hardware'
+        elif product_group_selection == 'Software':
+            product_type = 'Software'
+        elif product_group_selection == 'All Products':
+            product_type = None
+        # clear filters button
+    if 'clear_filters_button' == ctx.triggered_id:
+        interval_start = None
         product_type = None
     
 
-    # logic for the date buttons and filters data accordingly
-    # gets all data in the specified date range
-    interval_start = None
-    if 'button_6months' == ctx.triggered_id:
-        interval_start = timedelta(days = 182) # data for last 6 months 
-    elif 'button_1year' == ctx.triggered_id:
-        interval_start = timedelta(days = 365) # data for last 1 year 
-    elif 'button4_3months' == ctx.triggered_id:
-        interval_start = timedelta(days = 91) # data for the last 3 months 
-    else:
-        interval_start = None
+    graph1_processed_data = graph_data_prep(selected_client= selected_client, data = all_data, graph_num = 1, start_interval=interval_start, product_type= product_type)
+    # checks state for the top 5 and top 10 products
+    if 'submit_button' == ctx.triggered_id:
+        if top_products_selection == 'Top 5':
+            graph1_processed_data = graph1_processed_data.sort_values(by = 'total', ascending = False).head()
+        elif top_products_selection == 'Top 10':
+            graph1_processed_data = graph1_processed_data.sort_values(by = 'total', ascending = False).head(10)
+        else:
+            graph1_processed_data = graph1_processed_data
+    if 'clear_filters_button' == ctx.triggered_id:
+        graph1_processed_data = graph1_processed_data
 
     end_date_month = calendar.month_name[most_recent_date.month]
-
     if (interval_start!= timedelta(days = 365)) and (interval_start != None):
         start_date = most_recent_date  - interval_start
         start_month = calendar.month_name[start_date.month ] 
@@ -805,15 +827,6 @@ def update_graph1(selected_client, click, sort_button, totals_button ):
     else:
         earliest_month = calendar.month_name[earliest_date.month ] 
         date_label = f'{earliest_month} {earliest_date.year} through {end_date_month} {most_recent_date.year}'
-
-    graph1_processed_data = graph_data_prep(selected_client= selected_client, data = all_data, graph_num = 1, start_interval=interval_start, product_type= product_type)
-    if 'button5_top5_products' == ctx.triggered_id:
-        graph1_processed_data = graph1_processed_data.sort_values(by = 'total', ascending = False).head()
-    elif 'button6_top10_products' == ctx.triggered_id:
-        graph1_processed_data = graph1_processed_data.sort_values(by = 'total', ascending = False).head(10)
-    else:
-        graph1_processed_data = graph1_processed_data
-
 
     #create custom annotations based on legend status
     first = True
@@ -839,12 +852,11 @@ def update_graph1(selected_client, click, sort_button, totals_button ):
         height=800, width =800 + 13*len(x),
         legend=dict(yanchor="bottom", y=1, xanchor="auto", x=1, orientation="h", itemsizing='constant'),
         title={# Only appears for the HTML download
-            'text': f'Tickets Opened by Severity for {selected_client} from {date_label}',
+            'text': f'Tickets Opened by Severity for {selected_client} from {date_label}<br>Product Group:{product_group_selection}'+ 4* "&nbsp;"+f'Number of Top Products:{top_products_selection}',
             'y':0.97,
             'x':0,
             'xanchor': 'left',
-            'yanchor': 'top'})
-    #html download annotations
+            'yanchor': 'top'},)    #html download annotations
     html_total_labels = [{"x": x, "y": total+5, "text": blank_zero(total), "showarrow": False} for x, total in zip(x, html_totals)]
     #dashboard annotations
     total_labels = []
@@ -899,16 +911,13 @@ def update_graph1(selected_client, click, sort_button, totals_button ):
     Input(component_id=geo_dropdown, component_property='value'),#value of client selcted form dropdown
     Input('graph-two', 'restyleData'),#user input to detect interaction of legend
     Input('Versions', 'n_clicks'),#versions button and number of clicks
-    #Input('button_6months', 'n_clicks'), # buttons to represent the date range
-    #Input('button4_3months', 'n_clicks'),
-    #Input('button_1year', 'n_clicks'),
-    #Input('button5_top5_products', 'n_clicks'),
-    #Input('button6_top10_products', 'n_clicks'),
-    #Input('button_hardware', 'n_clicks'),
-    #Input('button_software', 'n_clicks'),
-    #Input('button_all_products', 'n_clicks')
-)
-def update_graph2(selected_client, click, versions_button):
+    Input('submit_button', 'n_clicks'),
+    Input('clear_filters_button', 'n_clicks'),
+    State('product_group', 'value'),
+    State('top_products_dropdown', 'value'),
+    State('date_dropdown', 'value'))
+
+def update_graph2(selected_client, click, versions_button, submit_button_clicks, clear_filters_button, product_group_selection, top_products_selection, date_dropdown_selection):
     """
     Returns a scatter plot graph of open tickets based on
     ticket count and color coordinated based on End of Support
@@ -946,24 +955,28 @@ def update_graph2(selected_client, click, versions_button):
 
     filtered_clients = summary_new """
 
-    if 'button_hardware' == ctx.triggered_id:
-        product_type = 'Hardware'
-    elif 'button_software' == ctx.triggered_id:
-        product_type = 'Software'
-    elif 'button_all_products' == ctx.triggered_id:
-        product_type = None
-    else:
+    product_type = None
+    interval_start = None
+    if submit_button_clicks > 0:
+        # checks state for the date buttons
+        if date_dropdown_selection == '3 Months':
+            interval_start = timedelta(days = 91) # data for the last 3 months
+        elif date_dropdown_selection == '6 Months':
+            interval_start = timedelta(days = 182) # data for last 6 months 
+        elif date_dropdown_selection == '1 year':
+            interval_start = timedelta(days = 365) # data for last 1 year 
+        # checks state for the product specification
+        if product_group_selection == 'Hardware':
+            product_type = 'Hardware'
+        elif product_group_selection == 'Software':
+            product_type = 'Software'
+        elif product_group_selection == 'All Products':
+            product_type = None
+        # clear filters button
+    if 'clear_filters_button' == ctx.triggered_id:
+        interval_start = None
         product_type = None
 
-    interval_start = None
-    if 'button_6months' == ctx.triggered_id:
-        interval_start = timedelta(days = 182) # data for last 6 months 
-    elif 'button_1year' == ctx.triggered_id:
-        interval_start = timedelta(days = 365) # data for last 1 year 
-    elif 'button4_3months' == ctx.triggered_id:
-        interval_start = timedelta(days = 91) # data for the last 3 months  
-    else:
-        interval_start = None 
 
     end_date_month = calendar.month_name[most_recent_date.month]
 
@@ -974,16 +987,15 @@ def update_graph2(selected_client, click, versions_button):
     else:
         earliest_month = calendar.month_name[earliest_date.month ] 
         date_label = f'{earliest_month} {earliest_date.year} through {end_date_month} {most_recent_date.year}'
-
-
     graph2_processed_data = graph_data_prep(selected_client= selected_client, data = all_data, graph_num = 2,  start_interval=interval_start, product_type= product_type)
-
-
-    if 'button5_top5_products' == ctx.triggered_id:
-        graph2_processed_data = graph2_processed_data.sort_values(by = 'counts', ascending = False).head()
-    elif 'button6_top10_products' == ctx.triggered_id:
-        graph2_processed_data = graph2_processed_data.sort_values(by = 'counts', ascending = False).head(10)
-    else:
+    if 'submit_button' == ctx.triggered_id:
+        if top_products_selection == 'Top 5':
+            graph2_processed_data = graph2_processed_data.sort_values(by = 'counts', ascending = False).head()
+        elif top_products_selection == 'Top 10':
+            graph2_processed_data = graph2_processed_data.sort_values(by = 'counts', ascending = False).head(10)
+        else:
+            graph2_processed_data = graph2_processed_data
+    if 'clear_filters_button' == ctx.triggered_id:
         graph2_processed_data = graph2_processed_data
 
     #seperate into traces by EOS status
@@ -1009,11 +1021,10 @@ def update_graph2(selected_client, click, versions_button):
         xaxis=dict(title='Latest Product Version to Oldest',range=(0.5,counts + 0.5)),
         yaxis=dict(title='IBM Product',categoryorder='category descending',dtick=1),
         showlegend=True,
-        height = 400 + 7*y,
+        height = 380 + 7*y,
         legend=dict(yanchor="bottom", y=1, xanchor="right", x=1, orientation="h", itemsizing='constant'),
-        title = f'Open Tickets by Product Version for Summary of {selected_client} from {date_label}'
-    )
-    fig2.update_traces(textfont_size=10)
+        title = f'Open Tickets by Product Version for Summary of {selected_client} from {date_label}<br>Product Group:{product_group_selection}' + 4* "&nbsp;" + f'Number of Top Products:{top_products_selection}')
+    fig2.update_traces(textfont_size=9)
 
     #Set base color and size for scatter points
     i = 0
@@ -1098,16 +1109,13 @@ def update_graph2(selected_client, click, versions_button):
     Input('graph-three', 'restyleData'),#user input to detect interaction of legend
     Input('Sort-2', 'n_clicks'),#sort button and number of clicks
     Input('Totals-2', 'n_clicks'),#totals button and number of clicks
-    #Input('button_6months', 'n_clicks'), # buttons to represent the date range
-    #Input('button4_3months', 'n_clicks'),
-    #Input('button_1year', 'n_clicks'),
-    #Input('button5_top5_products', 'n_clicks'),
-    #Input('button6_top10_products', 'n_clicks'),
-    #Input('button_hardware', 'n_clicks'),
-    #Input('button_software', 'n_clicks'),
-    #Input('button_all_products', 'n_clicks')
+    Input('submit_button', 'n_clicks'),
+    Input('clear_filters_button', 'n_clicks'),
+    State('product_group', 'value'),
+    State('top_products_dropdown', 'value'),
+    State('date_dropdown', 'value'),
 )
-def update_graph3(selected_client,click,sort_button,totals_button):
+def update_graph3(selected_client,click,sort_button, totals_button, submit_button_clicks, clear_filters_button, product_group_selection, top_products_selection, date_dropdown_selection):
     """
     Returns Bar graph of open tickets based on product count
     and categorized by Defect or How to Questions.
@@ -1120,27 +1128,30 @@ def update_graph3(selected_client,click,sort_button,totals_button):
             legend3[num] = True
         else: legend3[num] = vis
 
-    if 'button_hardware' == ctx.triggered_id:
-        product_type = 'Hardware'
-    elif 'button_software' == ctx.triggered_id:
-        product_type = 'Software'
-    elif 'button_all_products' == ctx.triggered_id:
-        product_type = None
-    else:
-        product_type = None
 
-
-
+    product_type = None
     interval_start = None
-    if 'button_6months' == ctx.triggered_id:
-        interval_start = timedelta(days = 182) # data for last 6 months 
-    elif 'button_1year' == ctx.triggered_id:
-        interval_start = timedelta(days = 365) # data for last 1 year
-    elif 'button4_3months' == ctx.triggered_id:
-        interval_start = timedelta(days = 91) # data for the last 3 months 
-    else:
-        interval_start = None 
-    
+    if submit_button_clicks > 0:
+        # checks state for the date buttons
+        if date_dropdown_selection == '3 Months':
+            interval_start = timedelta(days = 91) # data for the last 3 months
+        elif date_dropdown_selection == '6 Months':
+            interval_start = timedelta(days = 182) # data for last 6 months 
+        elif date_dropdown_selection == '1 year':
+            interval_start = timedelta(days = 365) # data for last 1 year 
+        # checks state for the product specification
+        if product_group_selection == 'Hardware':
+            product_type = 'Hardware'
+        elif product_group_selection == 'Software':
+            product_type = 'Software'
+        elif product_group_selection == 'All Products':
+            product_type = None
+        # clear filters button
+    if 'clear_filters_button' == ctx.triggered_id:
+        interval_start = None
+        product_type = None
+    end_date_month = calendar.month_name[most_recent_date.month]
+   
     end_date_month = calendar.month_name[most_recent_date.month]
 
     if (interval_start!= timedelta(days = 365)) and (interval_start != None):
@@ -1151,17 +1162,16 @@ def update_graph3(selected_client,click,sort_button,totals_button):
         earliest_month = calendar.month_name[earliest_date.month ] 
         date_label = f'{earliest_month} {earliest_date.year} through {end_date_month} {most_recent_date.year}'
 
-
     graph3_processed_data = graph_data_prep(selected_client= selected_client, data = all_data, graph_num = 1, start_interval=interval_start, product_type= product_type)
-
-    if 'button5_top5_products' == ctx.triggered_id:
-        graph3_processed_data = graph3_processed_data.sort_values(by = 'total', ascending = False).head()
-    elif 'button6_top10_products' == ctx.triggered_id:
-        graph3_processed_data = graph3_processed_data.sort_values(by = 'total', ascending = False).head(10)
-    else:
+    if 'submit_button' == ctx.triggered_id:
+        if top_products_selection == 'Top 5':
+            graph3_processed_data = graph3_processed_data.sort_values(by = 'total', ascending = False).head()
+        elif top_products_selection == 'Top 10':
+            graph3_processed_data = graph3_processed_data.sort_values(by = 'total', ascending = False).head(10)
+        else:
+            graph3_processed_data = graph3_processed_data
+    if 'clear_filters_button' == ctx.triggered_id:
         graph3_processed_data = graph3_processed_data
-
-
     #create base graph
     x=graph3_processed_data['Product Name']
     graph3_processed_data.rename(columns= {'How To' : 'Non-Defect'}, inplace = True )
@@ -1174,13 +1184,13 @@ def update_graph3(selected_client,click,sort_button,totals_button):
         height=800,width =800 + 13*len(x),
         legend=dict(yanchor="bottom", y=1, xanchor="auto", x=1, orientation="h", itemsizing='constant'),
         title={
-            'text': f'Proportion of Defects to Case Activity by Product for Summary of {selected_client} from {date_label}' ,
+            'text': f'Proportion of Defects to Case Activity by Product for Summary of {selected_client} from {date_label}<br>Product Group:{product_group_selection}' + 4* "&nbsp;" + f'Number of Top Products:{top_products_selection}',            
             'y':0.97,
             'x':0,
             'xanchor': 'left',
             'yanchor': 'top'})
     
-
+    
     #annotations for dashboard
     graph3_processed_data["totals"]=graph3_processed_data["Non-Defect"].fillna(0)+graph3_processed_data["Defects"].fillna(0)
     #annotations for html download
@@ -1239,8 +1249,19 @@ def update_graph3(selected_client,click,sort_button,totals_button):
 
     return fig3
 
+"""@app.callback(
+    Output(component_id='client_name', component_property= 'data' ),#graph shown in HTML
+    Input(component_id=geo_dropdown, component_property='value'))#client dropdown selection)
 
-
+def produce_wordcloud(selected_client):
+    client_data = all_data[all_data['Global Buying Group Name'] == selected_client]
+    stopwords = set(STOPWORDS)
+    wordcloud = WordCloud(width = 800, height = 800,
+                background_color ='white',
+                stopwords = stopwords,
+                min_font_size = 10).generate(client_data['Product Name'].to_string(index = False).replace('\n', ''))
+    wordcloud_file = wordcloud.to_file('assets/wordcloud2.png')
+    return dcc.send_file(wordcloud_file, )"""
 #==========================================================================================================================================
 #download button
 graph_one = os.path.join(os.getcwd(), 'graph-one.html')
@@ -1342,6 +1363,95 @@ def update_output(selected_client):
     return title1, title2, title3
 
 # get the button selections for all buttons
+
+#callbacks to update the filter labels -- Making one callback for each filter 
+"""@app.callback(
+    # Date Selection LABELS 
+    Output('selected_date1', 'children'),
+    Output('selected_date2', 'children'),
+    Output('selected_date3', 'children'),
+    Input('button_6months', 'n_clicks'),
+    Input('button_1year', 'n_clicks'),
+    Input('clear_filters_button', 'n_clicks'),
+    State('button4_3months', 'n_clicks'))
+def return_date_label(button_6months, button4_3months, button_1year, clear_filters_button):
+    selected_date1, selected_date2, selected_date3 = 'Selected Date Range: None', 'Selected Date Range: None', 'Selected Date Range: None'
+    # LABELS for the date ranges
+    if 'button_6months' == ctx.triggered_id:
+       selected_date1, selected_date2, selected_date3 = 'Selected Date Range: Last 6 Months' , 'Selected Date Range: Last 6 Months', 'Selected Date Range: Last 6 Months'
+    elif 'button_1year' == ctx.triggered_id:
+        selected_date1, selected_date2, selected_date3 = 'Selected Date Range: Previous Year', 'Selected Date Range: Previous Year', 'Selected Date Range: Previous Year'
+    elif button4_3months > 0: 
+        selected_date1, selected_date2, selected_date3 =  f' Clicked {button4_3months}', 'Selected Date Range: Last 3 Months', 'Selected Date Range: Last 3 Months'
+    elif 'clear_filters_button' == ctx.triggered_id:
+        selected_date1, selected_date2, selected_date3 = 'Selected Date Range: None', 'Selected Date Range: None', 'Selected Date Range: None'
+    return selected_date1, selected_date2, selected_date3"""
+
+@app.callback(
+    Output('product_specification1', 'children'),
+    Output('product_specification2', 'children'),
+    Output('product_specification3', 'children'),
+    Input('button_hardware', 'n_clicks'),
+    Input('button_software', 'n_clicks'),
+    Input('button_all_products', 'n_clicks'),
+    Input('clear_filters_button', 'n_clicks'))
+def return_product_specification_label(button_hardware, button_software, button_all_products, clear_filters_button):
+    product_specification1, product_specification2, product_specification3 = 'Product Specifications Selected: None', 'Product Specifications Selected: None', 'Product Specifications Selected: None'
+    # LABELS for the date ranges
+    if 'button_hardware' == ctx.triggered_id:
+        product_specification1, product_specification2, product_specification3 = 'Product Specifications Selected: Hardware', 'Product Specifications Selected: Hardware', 'Product Specifications Selected: Hardware'
+    elif 'button_software' == ctx.triggered_id:
+        product_specification1, product_specification2, product_specification3 = 'Product Specifications Selected: Software', 'Product Specifications Selected: Software', 'Product Specifications Selected: Software'
+    elif 'button_all_products' == ctx.triggered_id:
+        product_specification1, product_specification2, product_specification3 = 'Product Specifications Selected: All', 'Product Specifications Selected: All', 'Product Specifications Selected: All'
+    elif 'clear_filters_button' == ctx.triggered_id:
+        product_specification1, product_specification2, product_specification3 = 'Product Specifications Selected: None', 'Product Specifications Selected: None', 'Product Specifications Selected: None'    
+    return product_specification1, product_specification2, product_specification3
+
+@app.callback(
+    Output('top_products1', 'children'),
+    Output('top_products2', 'children'),
+    Output('top_products3', 'children'),
+    Input('button5_top5_products', 'n_clicks'),
+    Input('button6_top10_products', 'n_clicks'),
+    Input('clear_filters_button', 'n_clicks'))
+def return_product_specification_label(button5_top5_products, button6_top10_products, clear_filters_button):
+    top_products1, top_products2, top_products3 = 'Top Products Selected: None', 'Top Products Selected: None', 'Top Products Selected: None'
+    # LABELS for the date ranges
+    if 'button5_top5_products' == ctx.triggered_id:
+        top_products1, top_products2, top_products3 = 'Top Products Selected: Top 5 Products' , 'Top Products Selected: Top 5 Products', 'Top Products Selected: Top 5 Products'
+    elif 'button6_top10_products' == ctx.triggered_id:
+        top_products1, top_products2, top_products3 = 'Top Products Selected: Top 10 Products', 'Top Products Selected: Top 10 Products', 'Top Products Selected: Top 10 Products'
+    elif 'clear_filters_button' == ctx.triggered_id:
+        top_products1, top_products2, top_products3 = 'Top Products Selected: None', 'Top Products Selected: None', 'Top Products Selected: None'
+    return top_products1 , top_products2, top_products3
+
+"""@app.callback(
+    # Date Selection LABELS 
+    Output('selected_date1', 'children'),
+    Output('selected_date2', 'children'),
+    Output('selected_date3', 'children'),
+    # Hardware / Software Selections LABELS 
+    Output('product_specification1', 'children'),
+    Output('product_specification2', 'children'),
+    Output('product_specification3', 'children'),
+    # Top product specification
+    Output('top_products1', 'children'),
+    Output('top_products2', 'children'),
+    Output('top_products3', 'children'),
+    Input('clear_filters_button', 'n_clicks'))
+def return_default_laebls(clear_filters_button): 
+    if 'clear_filters_button' == ctx.triggered_id:
+        selected_date1, selected_date2, selected_date3 = 'Selected Date Range: None', 'Selected Date Range: None', 'Selected Date Range: None'
+        product_specification1, product_specification2, product_specification3 = 'Product Specifications Selected: None', 'Product Specifications Selected: None', 'Product Specifications Selected: None'
+        top_products1, top_products2, top_products3 = 'Top Products Selected: None', 'Top Products Selected: None', 'Top Products Selected: None'
+        return product_specification1, product_specification2, product_specification3, selected_date1, selected_date2, selected_date3, top_products1 , top_products2, top_products3
+    return None"""
+
+
+
+
+
 """
 @app.callback(
     # Date Selection LABELS 
@@ -1366,9 +1476,10 @@ def update_output(selected_client):
     # buttons for the product types
     Input('button_hardware', 'n_clicks'),
     Input('button_software', 'n_clicks'),
-    Input('button_all_products', 'n_clicks'))
+    Input('button_all_products', 'n_clicks'),
+    Input('clear_filters_button', 'n_clicks'))
 
-def return_parameter_labels(button_6months,  button_1year, button4_3months, button5_top5_products, button6_top10_products, button_hardware, button_software, button_all_products):
+def return_parameter_labels(button_6months, button4_3months, button_1year, button5_top5_products, button6_top10_products,button_hardware, button_software, button_all_products, clear_filters_button):
     # default labels
     selected_date1, selected_date2, selected_date3 = 'Selected Date Range: None', 'Selected Date Range: None', 'Selected Date Range: None'
     product_specification1, product_specification2, product_specification3 = 'Product Specifications Selected: None', 'Product Specifications Selected: None', 'Product Specifications Selected: None'
@@ -1392,15 +1503,62 @@ def return_parameter_labels(button_6months,  button_1year, button4_3months, butt
         top_products1, top_products2, top_products3 = 'Top Products Selected: Top 5 Products' , 'Top Products Selected: Top 5 Products', 'Top Products Selected: Top 5 Products'
     elif 'button6_top10_products' == ctx.triggered_id:
         top_products1, top_products2, top_products3 = 'Top Products Selected: Top 10 Products', 'Top Products Selected: Top 10 Products', 'Top Products Selected: Top 10 Products'
+    elif 'clear_filters_button' == ctx.triggered_id:
+        selected_date1, selected_date2, selected_date3 = 'Selected Date Range: None', 'Selected Date Range: None', 'Selected Date Range: None'
+        product_specification1, product_specification2, product_specification3 = 'Product Specifications Selected: None', 'Product Specifications Selected: None', 'Product Specifications Selected: None'
+        top_products1, top_products2, top_products3 = 'Top Products Selected: None', 'Top Products Selected: None', 'Top Products Selected: None'
 
-    return product_specification1, product_specification2, product_specification3, selected_date1, selected_date2, selected_date3, top_products1 , top_products2, top_products3
-"""
-#==========================================================================================================================================
+    return product_specification1, product_specification2, product_specification3, selected_date1, selected_date2, selected_date3, top_products1 , top_products2, top_products3 """
+#========================================================================================================================================== 
 #HTML Layout
 FA_icon = html.I(className="fa-solid fa-cloud-arrow-down me-2")
 subtitle = 'Data from March 2022 through June 2023'
 disclaimer = 'Disclaimer: Products without version information may appear in graphs 1 and 3, but not graph 2'
-#specification_disclaimer = '*** Please Note: Current Deployment Limits Exports to 1 Filter Parameter ***'
+
+date_dropdown = html.Div(
+    [
+        dcc.Dropdown(
+            id = 'date_dropdown',
+            options = [
+                {'label' : 'Previous 3 Months', 'value' : '3 Months'},
+                {'label' : 'Previous 6 Months', 'value' : '6 Months'},
+                {'label' : 'Previous 1 Year', 'value' : '1 Year'}
+                ],
+            value = 'None',className=("m-1"), placeholder = 'Date Range')])
+
+top_products_dropdown = html.Div(
+    [
+        dcc.Dropdown(
+            id = 'top_products_dropdown',
+            options = [
+                {'label' : 'Top 5 Products', 'value' : 'Top 5'},
+                {'label' : 'Top 10 Products', 'value' : 'Top 10'}],
+            value = 'None', className=("m-1"), placeholder = 'Number of Top Products by Count')])
+
+
+product_spec_dropdown = html.Div(
+    [
+        dcc.Dropdown(
+            id = 'product_group',
+            options = [
+                {'label' : 'Hardware', 'value' : 'Hardware'},
+                {'label' : 'Software', 'value' : 'Software'},
+                {'label' : 'All Products', 'value' : 'All Products'}],
+            value = 'None', className=("m-1"), placeholder = 'Product Type')])
+
+submit_button = dbc.Button('Submit',   id='submit_button', n_clicks=0, className=("m-1"))
+clear_filters_button = dbc.Button('Clear Filters', id='clear_filters_button', n_clicks=0, className=("m-1"))
+# resets the state of the drpdwons to the default
+@app.callback(
+    Output('date_dropdown', 'value'),
+    Output('top_products_dropdown', 'value'),
+    Output('product_group', 'value'),
+    Input('clear_filters_button', 'n_clicks')
+)
+def reset_dropdown(clear_button_clicks):
+    if clear_button_clicks > 0:
+        return ([None, None, None])
+    return dash.no_update, dash.no_update, dash.no_update
 app.layout = html.Div([
     html.Div(id = "page-content"),
     dcc.Interval(id = "auth-check-interval", interval = 3600 * 1000)
@@ -1433,26 +1591,18 @@ def layout_components(n):
             dcc.Download(id="download-html"),
             dbc.Button([FA_icon, "Download Client Data"], color="info", className=("m-1"), outline=True, id = 'download-data-button', n_clicks= 0 ),
             dcc.Download(id="download-data"),
-            html.Br(),html.Br(),
+            html.Br(),
             html.H3(id='title1'),
-            #html.H5(specification_disclaimer),
-            #dbc.Button('3 Months', id = 'button4_3months', n_clicks = 0, color = 'primary', outline = True),
-            #dbc.Button('6 Months', id = 'button_6months', n_clicks = 0, color = 'primary',  outline = True),
-            #dbc.Button('1 Year', id = 'button_1year', n_clicks = 0, color = 'primary', outline = True),
-            #html.H5(id='product_specification1'),
-            #html.Br(),html.Br(),
-            #dbc.Button('Include Only Hardware Products', color="success", className=("m-1"), outline=True, id='button_hardware', n_clicks=0),
-            #dbc.Button('Include Only Software Products', color="success", className=("m-1"), outline=True, id='button_software', n_clicks=0),
-            #dbc.Button('Include All Products', color="success", className=("m-1"), outline=True, id='button_all_products', n_clicks=0),
-            #html.H5(id='selected_date1'),
-            #html.Br(),html.Br(),
-            #dbc.Button('Top 5 Products', color="success", className=("m-1"), outline=True, id='button5_top5_products', n_clicks=0),
-            #dbc.Button('Top 10 Products', color="success", className=("m-1"), outline=True, id='button6_top10_products', n_clicks=0),
-            #html.H5(id='top_products1'),
-            #html.Br(),html.Br(),
+            html.H5(id='product_specification1', className= "m-1"),
+            dbc.Row([dbc.Col(date_dropdown), dbc.Col(product_spec_dropdown), dbc.Col(top_products_dropdown),
+                     dbc.Col([submit_button, clear_filters_button])]),
             dbc.Button('Sort', color="success", className=("m-1"), outline=True, id='Sort-1', n_clicks=0),
             dbc.Button('Totals', color="success", className=("m-1"), outline=True, id='Totals-1', n_clicks=0),
-            dcc.Graph(id='graph-one', style={'overflowX': 'scroll'}),
+            html.Br(),
+            dcc.Loading(
+                    [dcc.Graph(id='graph-one', style={'overflowX': 'scroll'})],
+                    overlay_style={"visibility":"visible", "opacity": .5, "backgroundColor": "white"},
+                    custom_spinner=html.H2(["Please Wait: Graph is loading", dbc.Spinner(color="danger")])),
 
         ], className='six columns'),
 
@@ -1464,22 +1614,15 @@ def layout_components(n):
                 html.Br(),
                 html.H3(id='title2'),
                 html.H5(disclaimer),
-                #dbc.Button('3 Months', id = 'button4_3months', n_clicks = 0, color = 'primary', outline = True),
-                #dbc.Button('6 Months', id = 'button_6months', n_clicks = 0, color = 'primary',  outline = True),
-                #dbc.Button('1 Year', id = 'button_1year', n_clicks = 0, color = 'primary', outline = True),
-                #html.H5(id='product_specification2'),
-                #html.Br(),
-                #dbc.Button('Include Only Hardware Products', color="success", className=("m-1"), outline=True, id='button_hardware', n_clicks=0),
-                #dbc.Button('Include Only Software Products', color="success", className=("m-1"), outline=True, id='button_software', n_clicks=0),
-                #dbc.Button('Include All Products', color="success", className=("m-1"), outline=True, id='button_all_products', n_clicks=0),
-                #html.H5(id='selected_date2'),
-                #html.Br(),
-                #dbc.Button('Top 5 Products', color="success", className=("m-1"), outline=True, id='button5_top5_products', n_clicks=0),
-                #dbc.Button('Top 10 Products', color="success", className=("m-1"), outline=True, id='button6_top10_products', n_clicks=0),
-                #html.H5(id='top_products2'),
-                #html.Br(),
+                html.H5(id='product_specification2'),
+                html.H5(id='selected_date2'),
+                html.H5(id='top_products2'),
+                html.Br(),
                 dbc.Button('Version ID', color="success", className=("m-1"), outline=True, id='Versions', n_clicks=0),
-                dcc.Graph(id='graph-two'),
+                dcc.Loading(
+                    [dcc.Graph(id='graph-two')],
+                    overlay_style={"visibility":"visible", "opacity": .5, "backgroundColor": "white"},
+                    custom_spinner=html.H2(["Please Wait: Graph is loading", dbc.Spinner(color="danger")])),
         ], className='six columns'),
     ], className='row'),
 
@@ -1487,26 +1630,35 @@ def layout_components(n):
     html.Div([
         html.Div([
                 html.H3(id='title3'),
-                #dbc.Button('3 Months', id = 'button4_3months', n_clicks = 0, color = 'primary', outline = True),
-                #dbc.Button('6 Months', id = 'button_6months', n_clicks = 0, color = 'primary',  outline = True),
-                #dbc.Button('1 Year', id = 'button_1year', n_clicks = 0, color = 'primary', outline = True),
-                #html.H5(id='product_specification3'),
-                #html.Br(),html.Br(),
-                #dbc.Button('Include Only Hardware Products', color="success", className=("m-1"), outline=True, id='button_hardware', n_clicks=0),
-                #dbc.Button('Include Only Software Products', color="success", className=("m-1"), outline=True, id='button_software', n_clicks=0),
-                #dbc.Button('Include All Products', color="success", className=("m-1"), outline=True, id='button_all_products', n_clicks=0),
-                #html.H5(id='selected_date3'),
-                #html.Br(),html.Br(),
-                #dbc.Button('Top 5 Products', color="success", className=("m-1"), outline=True, id='button5_top5_products', n_clicks=0),
-                #dbc.Button('Top 10 Products', color="success", className=("m-1"), outline=True, id='button6_top10_products', n_clicks=0),
-                #html.H5(id='top_products3'),
-                #html.Br(),html.Br(),
+                html.H5(id='product_specification3'),
+                html.Br(),html.Br(),
+                html.H5(id='selected_date3'),
+                html.Br(),html.Br(),
+                html.H5(id='top_products3'),
+                html.Br(),html.Br(),
                 dbc.Button('Sort', color="success", className=("m-1"), outline=True, id='Sort-2', n_clicks=0),
                 dbc.Button('Totals', color="success", className=("m-1"), outline=True, id='Totals-2', n_clicks=0),
-                dcc.Graph(id='graph-three'),
+                 dcc.Loading(
+                    [dcc.Graph(id='graph-three')],
+                    overlay_style={"visibility":"visible", "opacity": .5, "backgroundColor": "white"},
+                    custom_spinner=html.H2(["Please Wait: Graph is loading", dbc.Spinner(color="danger")])),
 
         ], className='six columns'),
     ], className='row'),
+
+
+  """  html.Div([
+        html.Div([
+            dbc.Button('Produce Word Cloud', color="success", className=("m-1"), outline=True, id='produce_wordcloud', n_clicks=0),
+            html.Br(),
+            html.H5(id='Word Cloud Title'),
+            html.Img(src = 'assets/wordcloud1.png', style  = {'height' : '50%', 'width' : '50%'}),html.Img(src = 'assets/wordcloud1.png', style  = {'height' : '50%', 'width' : '50%'})
+
+        ], className='six columns'),
+    ], className='row'), """
+
+
+
     ]
 
 
