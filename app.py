@@ -1647,17 +1647,6 @@ def layout_components(n):
     ], className='row'),
 
 
-  """  html.Div([
-        html.Div([
-            dbc.Button('Produce Word Cloud', color="success", className=("m-1"), outline=True, id='produce_wordcloud', n_clicks=0),
-            html.Br(),
-            html.H5(id='Word Cloud Title'),
-            html.Img(src = 'assets/wordcloud1.png', style  = {'height' : '50%', 'width' : '50%'}),html.Img(src = 'assets/wordcloud1.png', style  = {'height' : '50%', 'width' : '50%'})
-
-        ], className='six columns'),
-    ], className='row'), """
-
-
 
     ]
 
