@@ -1633,9 +1633,7 @@ def layout_components(n):
                 html.H5(id='product_specification3'),
                 html.Br(),html.Br(),
                 html.H5(id='selected_date3'),
-                html.Br(),html.Br(),
                 html.H5(id='top_products3'),
-                html.Br(),html.Br(),
                 dbc.Button('Sort', color="success", className=("m-1"), outline=True, id='Sort-2', n_clicks=0),
                 dbc.Button('Totals', color="success", className=("m-1"), outline=True, id='Totals-2', n_clicks=0),
                  dcc.Loading(
