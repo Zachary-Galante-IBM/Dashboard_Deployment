@@ -1,4 +1,5 @@
 #Import Libraries
+
 import dash
 from dash import Dash, html, Input, Output, ctx,dcc
 from dash.dependencies import Output, Input, State
@@ -21,8 +22,8 @@ cwd = os.getcwd()
 import json
 import re
 from auth_dash import AppIDAuthProviderDash
-import datetime
-#from wordcloud import WordCloud, STOPWORDS
+from datetime import datetime
+#from cloud import WordCloud, STOPWORDS
 from flask import jsonify, send_file, Flask
 import base64
 from io import BytesIO
@@ -92,6 +93,10 @@ august_data = get_item('oidash-app','August_24.csv')
 august_monthly_data = august_data['Body'].read()
 with open('August_24.csv','wb') as file:
     file.write(august_monthly_data)
+september_data = get_item('oidash-app','September_24.csv')
+september_monthly_data = september_data['Body'].read()
+with open('September_24.csv','wb') as file:
+    file.write(september_monthly_data)
 lifecycle_data_cloud = get_item('oidash-app','ibm_product_lifecycle_list.csv')
 lifecycle_data = lifecycle_data_cloud['Body'].read()
 with open('ibm_product_lifecycle_list.csv','wb') as file:
@@ -113,6 +118,8 @@ may_data_loaded = pd.read_csv('May_24.csv',  encoding='UTF-16', sep='\t',on_bad_
 june_data_loaded = pd.read_csv('June_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 july_data_loaded = pd.read_csv('July_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 august_data_loaded = pd.read_csv('August_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
+september_data_loaded = pd.read_csv('September_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
+
 # TODO: Change the loaded data date column to datetime
 jan_data_loaded['Date'] = pd.to_datetime(jan_data_loaded['Month'])
 feb_data_loaded['Date'] = pd.to_datetime(feb_data_loaded['Month'])
@@ -122,9 +129,10 @@ may_data_loaded['Date'] = pd.to_datetime(may_data_loaded['Month'])
 june_data_loaded['Date'] = pd.to_datetime(june_data_loaded['Month'])
 july_data_loaded['Date'] = pd.to_datetime(july_data_loaded['Month'])
 august_data_loaded['Date'] = pd.to_datetime(august_data_loaded['Month'])
+september_data_loaded['Date'] = pd.to_datetime(september_data_loaded['Month'])
 all_data['Date'] = pd.to_datetime(all_data['Month'])
 # TODO: Add the loaded data to be joined to the main DataFrame
-all_data = pd.concat([all_data, jan_data_loaded, feb_data_loaded, march_data_loaded, april_data_loaded, may_data_loaded, june_data_loaded, july_data_loaded, august_data_loaded])
+all_data = pd.concat([all_data, jan_data_loaded, feb_data_loaded, march_data_loaded, april_data_loaded, may_data_loaded, june_data_loaded, july_data_loaded, august_data_loaded, september_data_loaded])
 earliest_date = all_data['Date'].min() # earliest date 
 most_recent_date = all_data['Date'].max() # the most recent date 
 # merging the pidname info 
@@ -133,22 +141,22 @@ all_data.drop(columns = ['pidname_x'], inplace = True )
 all_data.rename(columns = {'pidname_y' : 'pidname'} ,inplace = True)
 # joining the pid info back to the new data 
 # get the dictionaries and write them to JSON files
-red = get_item('oidash-app','Red_dict_May_24_final.json')
+red = get_item('oidash-app','Red_dict_October_24_final.json')
 red = red['Body'].read()
 with open('red.json','wb') as file:
     file.write(red)
-orange = get_item('oidash-app','Orange_dict_May_24_final.json')
+orange = get_item('oidash-app','Orange_dict_October_24_final.json')
 orange = orange['Body'].read()
 with open('orange.json','wb') as file:
     file.write(orange)
-green = get_item('oidash-app','Green_dict_May_24_final.json')
+green = get_item('oidash-app','Green_dict_October_24_final.json')
 green = green['Body'].read()
 with open('green.json','wb') as file:
     file.write(green)
 server = Flask(__name__)
 DASH_URL_BASE_PATHNAME = "/dashboard/"
 auth = AppIDAuthProviderDash(DASH_URL_BASE_PATHNAME)
-app = dash.Dash(__name__, server = auth.flask, url_base_pathname = DASH_URL_BASE_PATHNAME, external_stylesheets=[dbc.themes.MINTY, dbc.icons.FONT_AWESOME])
+app = dash.Dash(__name__,  server = auth.flask, url_base_pathname = DASH_URL_BASE_PATHNAME, external_stylesheets=[dbc.themes.MINTY, dbc.icons.FONT_AWESOME])
 #==========================================================================================================================================
 #Import Dictionaries - Used for calculating the color for EOS status
 #RED: products and related versions that have reached end of support
@@ -163,7 +171,7 @@ f.close()
 with open('green.json', 'r') as f:
   green = json.load(f)
 f.close()
-product_lifecycle_data = pd.read_csv('ibm_product_lifecycle_list.csv')
+product_lifecycle_data = pd.read_csv('ibm_product_lifecycle_list_Oct_24.csv')
 pid_grouped  =product_lifecycle_data[['IBM Product', 'PID']].groupby('PID')['IBM Product'].apply(list).reset_index()
 for product_list in pid_grouped['IBM Product']:
     red_versions = []
@@ -632,7 +640,7 @@ def string_replace(summary):
     
     return summary
 
-def graph_data_prep(selected_client, data, graph_num,  start_interval = None, product_type = None):
+def graph_data_prep(selected_client, data, graph_num,  start_interval = None, product_type = None, cmr_numbers = None ):
     from natsort import natsort_keygen
     """
     Processes data used to populate graphs used 
@@ -647,10 +655,15 @@ def graph_data_prep(selected_client, data, graph_num,  start_interval = None, pr
     client_defects_data -- DataFrame with case info describing the severity level and type of question
     
     """
-    filtered_data_by_client = data[data['Global Buying Group Name'] == selected_client]
+    if cmr_numbers:
+        filtered_data_by_client = data[(data['Global Buying Group Name'] == selected_client) & (data['CMR Number'].isin(cmr_numbers))]
+    else:
+        filtered_data_by_client = data[data['Global Buying Group Name'] == selected_client]
     filtered_data_by_client['Date'] = pd.to_datetime(filtered_data_by_client['Month'])
-    latest_date = filtered_data_by_client['Date'].max() # the most recent date 
+    latest_date = filtered_data_by_client['Date'].max() # the most recent date
+    
     # filtering based off input from the buttons
+    
     if start_interval:
         start_date = latest_date - start_interval
         data_filtered_by_date = filtered_data_by_client[(filtered_data_by_client['Date'] <= latest_date) & (filtered_data_by_client['Date'] >= start_date)]
@@ -712,6 +725,9 @@ def graph_data_prep(selected_client, data, graph_num,  start_interval = None, pr
         filtered_by_date_sub.loc[filtered_by_date_sub["Product Name"].str.contains("InfoSphere Information Server"), "Product Name"] = 'IBM InfoSphere Information Server'
         filtered_by_date_sub.loc[filtered_by_date_sub["Product Name"].str.contains("Hortonworks Data Platform for IBM"), "Product Name"] = 'Hortonworks Data Platform'
         #filtered_by_date_sub = filtered_by_date_sub.merge(how = 'left', on = 'Product Name', right = product_info_table_subset)
+        missing_versions = filtered_by_date_sub['Product Version'].isnull().sum()
+        if missing_versions == len(filtered_by_date_sub):
+            filtered_by_date_sub = filtered_by_date_sub.fillna('0.0')
         filtered_by_date_sub['color'] = filtered_by_date_sub.apply(calc_color,axis=1).tolist()#find color/support status
         
         # product name and version grouped 
@@ -745,6 +761,22 @@ geo_dropdown = dcc.Dropdown(options=all_data['Global Buying Group Name'].unique(
 
 
 
+@app.callback(Output('CMR_Dropdown_Div', 'children'),
+              Input( geo_dropdown, 'value'))
+def update_CMR_dropdown(selected_client):
+    filtered_CMR_data = all_data[all_data['Global Buying Group Name'] == selected_client]
+    cmr_dropdown = dcc.Dropdown(options = filtered_CMR_data['CMR Number'].unique(), multi = True, placeholder = 'CMR Numbers..(ALL ARE INCLUDED BY DEFAULT)', id = 'CMR_dropdown')
+    return cmr_dropdown
+@app.callback(Output('CMR_dropdown', 'value'),
+              Input('all_cmrs_button', 'n_clicks'),
+              State('CMR_dropdown', 'options'), 
+             prevent_initial_call = True )
+def select_all(n_clicks, dropdown_options):
+    if n_clicks != None:
+        return dropdown_options
+    else:
+        return dash.no_update
+
 global legend1#keep track of which items in legend are selected upon update for graph 1
 legend1 = [True,True,True,True]
 
@@ -755,11 +787,14 @@ global legend3#keep track of which items in legend are selected upon update for 
 legend3 = [True,True]
 
 
+
+
 download_component = dcc.Download()
 
 @app.callback(
     Output(component_id='graph-one', component_property='figure'),
     Input(component_id=geo_dropdown, component_property='value'),
+    Input('CMR_dropdown', 'value'),
     Input('graph-one', 'restyleData'),#user input to detect interaction of legend
     Input('Sort-1', 'n_clicks'),
     Input('Totals-1', 'n_clicks'),
@@ -771,7 +806,7 @@ download_component = dcc.Download()
 )
 
 
-def update_graph1(selected_client, click, sort_button, totals_button, submit_button_clicks, clear_filters_button, product_group_selection, top_products_selection, date_dropdown_selection):
+def update_graph1(selected_client, cmr_dropdown_selections, click, sort_button, totals_button, submit_button_clicks, clear_filters_button, product_group_selection, top_products_selection, date_dropdown_selection):
     """
     returns a bar graph of product open tickets and their severity
     for selected client represented by values 1-4
@@ -805,9 +840,8 @@ def update_graph1(selected_client, click, sort_button, totals_button, submit_but
     if 'clear_filters_button' == ctx.triggered_id:
         interval_start = None
         product_type = None
-    
 
-    graph1_processed_data = graph_data_prep(selected_client= selected_client, data = all_data, graph_num = 1, start_interval=interval_start, product_type= product_type)
+    graph1_processed_data = graph_data_prep(selected_client= selected_client, data = all_data,graph_num = 1, start_interval=interval_start, product_type= product_type, cmr_numbers= cmr_dropdown_selections )
     # checks state for the top 5 and top 10 products
     if 'submit_button' == ctx.triggered_id:
         if top_products_selection == 'Top 5':
@@ -910,6 +944,7 @@ def update_graph1(selected_client, click, sort_button, totals_button, submit_but
     Output(component_id='graph-two', component_property='figure'),#graph to be returned and displayed in HTML
     Input(component_id=geo_dropdown, component_property='value'),#value of client selcted form dropdown
     Input('graph-two', 'restyleData'),#user input to detect interaction of legend
+    Input('CMR_dropdown', 'value'),
     Input('Versions', 'n_clicks'),#versions button and number of clicks
     Input('submit_button', 'n_clicks'),
     Input('clear_filters_button', 'n_clicks'),
@@ -917,7 +952,7 @@ def update_graph1(selected_client, click, sort_button, totals_button, submit_but
     State('top_products_dropdown', 'value'),
     State('date_dropdown', 'value'))
 
-def update_graph2(selected_client, click, versions_button, submit_button_clicks, clear_filters_button, product_group_selection, top_products_selection, date_dropdown_selection):
+def update_graph2(selected_client, click, cmr_dropdown_selections,  versions_button, submit_button_clicks, clear_filters_button, product_group_selection, top_products_selection, date_dropdown_selection):
     """
     Returns a scatter plot graph of open tickets based on
     ticket count and color coordinated based on End of Support
@@ -987,7 +1022,7 @@ def update_graph2(selected_client, click, versions_button, submit_button_clicks,
     else:
         earliest_month = calendar.month_name[earliest_date.month ] 
         date_label = f'{earliest_month} {earliest_date.year} through {end_date_month} {most_recent_date.year}'
-    graph2_processed_data = graph_data_prep(selected_client= selected_client, data = all_data, graph_num = 2,  start_interval=interval_start, product_type= product_type)
+    graph2_processed_data = graph_data_prep(selected_client= selected_client, data = all_data, graph_num = 2,  start_interval=interval_start, product_type= product_type, cmr_numbers= cmr_dropdown_selections)
     if 'submit_button' == ctx.triggered_id:
         if top_products_selection == 'Top 5':
             graph2_processed_data = graph2_processed_data.sort_values(by = 'counts', ascending = False).head()
@@ -1105,7 +1140,8 @@ def update_graph2(selected_client, click, versions_button, submit_button_clicks,
     return fig2
 @app.callback(
     Output(component_id='graph-three', component_property='figure'),#graph shown in HTML
-    Input(component_id=geo_dropdown, component_property='value'),#client dropdown selection
+    Input(component_id=geo_dropdown, component_property='value'),
+    Input('CMR_dropdown', 'value'),#client dropdown selection
     Input('graph-three', 'restyleData'),#user input to detect interaction of legend
     Input('Sort-2', 'n_clicks'),#sort button and number of clicks
     Input('Totals-2', 'n_clicks'),#totals button and number of clicks
@@ -1115,7 +1151,7 @@ def update_graph2(selected_client, click, versions_button, submit_button_clicks,
     State('top_products_dropdown', 'value'),
     State('date_dropdown', 'value'),
 )
-def update_graph3(selected_client,click,sort_button, totals_button, submit_button_clicks, clear_filters_button, product_group_selection, top_products_selection, date_dropdown_selection):
+def update_graph3(selected_client, cmr_dropdown_selections, click,sort_button, totals_button, submit_button_clicks, clear_filters_button, product_group_selection, top_products_selection, date_dropdown_selection):
     """
     Returns Bar graph of open tickets based on product count
     and categorized by Defect or How to Questions.
@@ -1162,7 +1198,7 @@ def update_graph3(selected_client,click,sort_button, totals_button, submit_butto
         earliest_month = calendar.month_name[earliest_date.month ] 
         date_label = f'{earliest_month} {earliest_date.year} through {end_date_month} {most_recent_date.year}'
 
-    graph3_processed_data = graph_data_prep(selected_client= selected_client, data = all_data, graph_num = 1, start_interval=interval_start, product_type= product_type)
+    graph3_processed_data = graph_data_prep(selected_client= selected_client, cmr_numbers= cmr_dropdown_selections, data = all_data, graph_num = 1, start_interval=interval_start, product_type= product_type)
     if 'submit_button' == ctx.triggered_id:
         if top_products_selection == 'Top 5':
             graph3_processed_data = graph3_processed_data.sort_values(by = 'total', ascending = False).head()
@@ -1304,9 +1340,20 @@ def download_client_data(n_clicks, selected_client):
 
 # download the html report 
 
+
+
+
 @app.callback(
     Output("download-html", "data"),
+    #Output('filters_text_file', "data"),
     Input("download-button", "n_clicks"),
+    #State(component_id= 'CMR_dropdown', component_property= 'value' ),
+    #State(component_id= geo_dropdown, component_property= 'value'),
+    #State('product_group', 'value'),
+    #State('top_products_dropdown', 'value'),
+    #State('date_dropdown', 'value'),
+    #State(component_id= 'product_spec_dropdown', component_property= 'value'),
+
     #Input(component_id=geo_dropdown, component_property='value'),#client dropdown selection
     prevent_initial_call=True,
 )
@@ -1341,7 +1388,51 @@ def get_download_file(n_clicks):
         if graph_one_html and graph_two_html and graph_three_html:
             html_bytes = graph_one_html + graph_two_html + graph_three_html
             html_bytes = b''.join(html_bytes)
+
+      
+
     return dcc.send_bytes(html_bytes, "Ticket-Analysis-Report-.html")
+
+@app.callback(
+    Output('filters_text_file', "data"),
+    Input("download-button", "n_clicks"),
+    State(component_id= 'CMR_dropdown', component_property= 'value' ),
+    State(component_id= geo_dropdown, component_property= 'value'),
+    State('product_group', 'value'),
+    State('top_products_dropdown', 'value'),
+    State('date_dropdown', 'value'),
+    prevent_initial_call=True,
+)
+
+def get_custom_text_file(n_clicks, CMR_selections, client_dropdown, product_group_dropdown = None , top_products_selection = None , date_selection = None):
+    # creating a text file to give info on the customization parameters
+    date = datetime.now()
+    date_string = date.strftime("%d/%m/%Y %H:%M:%S")
+
+    customizations_dict = {
+        'Report Date' : date_string, 
+        'Client Name' : client_dropdown,
+        'CMR_Selections' : CMR_selections,
+        'Custom Date Range' : date_selection,
+        'Top Products' : top_products_selection,
+        'Product Group' : product_group_dropdown
+    }
+    content = json.dumps(customizations_dict, indent = 4 )
+    text_file = dict(content = content, filename = 'custom_selections.txt')
+    return text_file
+    
+
+
+
+
+
+
+
+
+
+
+
+
 
 #==========================================================================================================================================
 #grab client names for titles
@@ -1350,7 +1441,6 @@ def get_download_file(n_clicks):
     Output('title2', 'children'),
     Output('title3', 'children'),
     Input(component_id=geo_dropdown, component_property='value')
-    #Input(component_id= 'date_range', component_property= 'value' )
 )
 def update_output(selected_client):
     """
@@ -1361,6 +1451,9 @@ def update_output(selected_client):
     title2 = 'Open Tickets by Product Version for Summary of ' + selected_client
     title3 = 'Proportion of Defects to Case Activity by Product for Summary of ' + selected_client
     return title1, title2, title3
+
+
+
 
 # get the button selections for all buttons
 
@@ -1548,6 +1641,9 @@ product_spec_dropdown = html.Div(
 
 submit_button = dbc.Button('Submit',   id='submit_button', n_clicks=0, className=("m-1"))
 clear_filters_button = dbc.Button('Clear Filters', id='clear_filters_button', n_clicks=0, className=("m-1"))
+all_cmrs_button = dbc.Button('All CMR Numbers', id='all_cmrs_button', n_clicks=0, className=("m-1"))
+
+
 # resets the state of the drpdwons to the default
 @app.callback(
     Output('date_dropdown', 'value'),
@@ -1585,14 +1681,16 @@ def layout_components(n):
     # Div elements for each graph -- Each corresponds to one graph 
     html.Div([
         html.Div([
-            geo_dropdown,
+            dbc.Row([dbc.Col([geo_dropdown]),dbc.Col([html.Div(id = 'CMR_Dropdown_Div')]), dbc.Col(all_cmrs_button)]),
             html.Br(),
             dbc.Button([FA_icon, "Download Report"], color="info", className=("m-1"), outline=True, id = 'download-button'),
             dcc.Download(id="download-html"),
+            dcc.Download(id = "filters_text_file"),
             dbc.Button([FA_icon, "Download Client Data"], color="info", className=("m-1"), outline=True, id = 'download-data-button', n_clicks= 0 ),
             dcc.Download(id="download-data"),
             html.Br(),
             html.H3(id='title1'),
+            html.H3(id='CMR_selections'),
             html.H5(id='product_specification1', className= "m-1"),
             dbc.Row([dbc.Col(date_dropdown), dbc.Col(product_spec_dropdown), dbc.Col(top_products_dropdown),
                      dbc.Col([submit_button, clear_filters_button])]),
