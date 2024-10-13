@@ -97,9 +97,9 @@ september_data = get_item('oidash-app','September_24.csv')
 september_monthly_data = september_data['Body'].read()
 with open('September_24.csv','wb') as file:
     file.write(september_monthly_data)
-lifecycle_data_cloud = get_item('oidash-app','ibm_product_lifecycle_list.csv')
+lifecycle_data_cloud = get_item('oidash-app','ibm_product_lifecycle_list_Oct_24.csv')
 lifecycle_data = lifecycle_data_cloud['Body'].read()
-with open('ibm_product_lifecycle_list.csv','wb') as file:
+with open('ibm_product_lifecycle_list_Oct_24.csv','wb') as file:
     file.write(lifecycle_data) 
 ######################################## 
 all_data = pd.read_csv('All_2023_Data_PID_Info.csv')
