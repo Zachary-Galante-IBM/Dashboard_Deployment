@@ -97,11 +97,15 @@ september_data = get_item('oidash-app','September_24.csv')
 september_monthly_data = september_data['Body'].read()
 with open('September_24.csv','wb') as file:
     file.write(september_monthly_data)
+october_data = get_item('oidash-app','October_24.csv')
+october_monthly_data = october_data['Body'].read()
+with open('October_24.csv','wb') as file:
+    file.write(october_monthly_data)
 lifecycle_data_cloud = get_item('oidash-app','ibm_product_lifecycle_list_Oct_24.csv')
 lifecycle_data = lifecycle_data_cloud['Body'].read()
 with open('ibm_product_lifecycle_list_Oct_24.csv','wb') as file:
     file.write(lifecycle_data) 
-######################################## 
+########################################  """
 all_data = pd.read_csv('All_2023_Data_PID_Info.csv')
 # copy of the dataframe to get the pidname info 
 product_name_info  = all_data[all_data['pidname'].notna()]
@@ -119,6 +123,7 @@ june_data_loaded = pd.read_csv('June_24.csv',  encoding='UTF-16', sep='\t',on_ba
 july_data_loaded = pd.read_csv('July_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 august_data_loaded = pd.read_csv('August_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 september_data_loaded = pd.read_csv('September_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
+october_data_loaded = pd.read_csv('October_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 
 # TODO: Change the loaded data date column to datetime
 jan_data_loaded['Date'] = pd.to_datetime(jan_data_loaded['Month'])
@@ -130,9 +135,10 @@ june_data_loaded['Date'] = pd.to_datetime(june_data_loaded['Month'])
 july_data_loaded['Date'] = pd.to_datetime(july_data_loaded['Month'])
 august_data_loaded['Date'] = pd.to_datetime(august_data_loaded['Month'])
 september_data_loaded['Date'] = pd.to_datetime(september_data_loaded['Month'])
+october_data_loaded['Date'] = pd.to_datetime(october_data_loaded['Month'])
 all_data['Date'] = pd.to_datetime(all_data['Month'])
 # TODO: Add the loaded data to be joined to the main DataFrame
-all_data = pd.concat([all_data, jan_data_loaded, feb_data_loaded, march_data_loaded, april_data_loaded, may_data_loaded, june_data_loaded, july_data_loaded, august_data_loaded, september_data_loaded])
+all_data = pd.concat([all_data, jan_data_loaded, feb_data_loaded, march_data_loaded, april_data_loaded, may_data_loaded, june_data_loaded, july_data_loaded, august_data_loaded, september_data_loaded, october_data_loaded])
 earliest_date = all_data['Date'].min() # earliest date 
 most_recent_date = all_data['Date'].max() # the most recent date 
 # merging the pidname info 
