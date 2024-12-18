@@ -45,3 +45,4 @@ class AppIDAuthProviderDash(AppIDAuthProvider):
                 else:
                     return func(*args, **kwargs)
         return wrapper_check
+

@@ -31,7 +31,7 @@ from io import BytesIO
 #setting up the API with the COS
 # Constants for IBM COS values
 COS_ENDPOINT = "https://s3.us-east.cloud-object-storage.appdomain.cloud" # Current list avaiable at https://control.cloud-object-storage.cloud.ibm.com/v2/endpoints
-COS_API_KEY_ID = os.environ["APPID_COS_API_KEY"]
+COS_API_KEY_ID = "IXlwNFSuZ9dl7CUr1LSlYs3gkBpwI2-fNdMCUne2Pb4C"
 COS_INSTANCE_CRN = "crn:v1:bluemix:public:cloud-object-storage:global:a/6003dba678e9a506528e0dc3dad11d75:b75750b4-68a2-4113-af62-16c1e6e10bca::" # eg "crn:v1:bluemix:public:cloud-object-storage:global:a/3bf0d9003xxxxxxxxxx1c3e97696b71c:d6f04d83-6c4f-4a62-a165-696756d63903::"
 # Create resource
 cos = ibm_boto3.resource("s3",
@@ -51,7 +51,7 @@ def get_item(bucket_name, item_name):
         print("Unable to retrieve file contents: {0}".format(e))
     if file:
         return file
-
+"""
 ######### FOR CLOUD DEPLOYMENT ########
 # getting the contents of the file from the COS
 client_data = get_item('oidash-app','All_2023_Data_PID_Info.csv')
@@ -101,6 +101,10 @@ october_data = get_item('oidash-app','October_24.csv')
 october_monthly_data = october_data['Body'].read()
 with open('October_24.csv','wb') as file:
     file.write(october_monthly_data)
+november_data = get_item('oidash-app','November_24.csv')
+november_monthly_data = november_data['Body'].read()
+with open('November_24.csv','wb') as file:
+    file.write(november_monthly_data)
 lifecycle_data_cloud = get_item('oidash-app','ibm_product_lifecycle_list_Oct_24.csv')
 lifecycle_data = lifecycle_data_cloud['Body'].read()
 with open('ibm_product_lifecycle_list_Oct_24.csv','wb') as file:
@@ -124,7 +128,7 @@ july_data_loaded = pd.read_csv('July_24.csv',  encoding='UTF-16', sep='\t',on_ba
 august_data_loaded = pd.read_csv('August_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 september_data_loaded = pd.read_csv('September_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 october_data_loaded = pd.read_csv('October_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
-
+november_data_loaded = pd.read_csv('November_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 # TODO: Change the loaded data date column to datetime
 jan_data_loaded['Date'] = pd.to_datetime(jan_data_loaded['Month'])
 feb_data_loaded['Date'] = pd.to_datetime(feb_data_loaded['Month'])
@@ -136,9 +140,10 @@ july_data_loaded['Date'] = pd.to_datetime(july_data_loaded['Month'])
 august_data_loaded['Date'] = pd.to_datetime(august_data_loaded['Month'])
 september_data_loaded['Date'] = pd.to_datetime(september_data_loaded['Month'])
 october_data_loaded['Date'] = pd.to_datetime(october_data_loaded['Month'])
+november_data_loaded['Date'] = pd.to_datetime(november_data_loaded['Month'])
 all_data['Date'] = pd.to_datetime(all_data['Month'])
 # TODO: Add the loaded data to be joined to the main DataFrame
-all_data = pd.concat([all_data, jan_data_loaded, feb_data_loaded, march_data_loaded, april_data_loaded, may_data_loaded, june_data_loaded, july_data_loaded, august_data_loaded, september_data_loaded, october_data_loaded])
+all_data = pd.concat([all_data, jan_data_loaded, feb_data_loaded, march_data_loaded, april_data_loaded, may_data_loaded, june_data_loaded, july_data_loaded, august_data_loaded, september_data_loaded, october_data_loaded, november_data_loaded])
 earliest_date = all_data['Date'].min() # earliest date 
 most_recent_date = all_data['Date'].max() # the most recent date 
 # merging the pidname info 
@@ -860,7 +865,9 @@ def update_graph1(selected_client, cmr_dropdown_selections, click, sort_button, 
         graph1_processed_data = graph1_processed_data
 
     end_date_month = calendar.month_name[most_recent_date.month]
-    if (interval_start!= timedelta(days = 365)) and (interval_start != None):
+    #if (interval_start!= timedelta(days = 365)) and (interval_start != None):
+    if interval_start != None:
+
         start_date = most_recent_date  - interval_start
         start_month = calendar.month_name[start_date.month ] 
         date_label = f'{start_month} {start_date.year} through {end_date_month} {most_recent_date.year}'
@@ -1021,7 +1028,8 @@ def update_graph2(selected_client, click, cmr_dropdown_selections,  versions_but
 
     end_date_month = calendar.month_name[most_recent_date.month]
 
-    if (interval_start!= timedelta(days = 365)) and (interval_start != None):
+    #if (interval_start!= timedelta(days = 365)) and (interval_start != None):
+    if interval_start != None:
         start_date = most_recent_date  - interval_start
         start_month = calendar.month_name[start_date.month ] 
         date_label = f'{start_month} {start_date.year} through {end_date_month} {most_recent_date.year}'
@@ -1196,7 +1204,8 @@ def update_graph3(selected_client, cmr_dropdown_selections, click,sort_button, t
    
     end_date_month = calendar.month_name[most_recent_date.month]
 
-    if (interval_start!= timedelta(days = 365)) and (interval_start != None):
+    #if (interval_start!= timedelta(days = 365)) and (interval_start != None):
+    if interval_start != None:
         start_date = most_recent_date  - interval_start
         start_month = calendar.month_name[start_date.month ] 
         date_label = f'{start_month} {start_date.year} through {end_date_month} {most_recent_date.year}'
@@ -1621,7 +1630,7 @@ date_dropdown = html.Div(
             options = [
                 {'label' : 'Previous 3 Months', 'value' : '3 Months'},
                 {'label' : 'Previous 6 Months', 'value' : '6 Months'},
-                {'label' : 'Previous 1 Year', 'value' : '1 Year'}
+                {'label' : 'Previous 1 Year', 'value' : '1 year'}
                 ],
             value = 'None',className=("m-1"), placeholder = 'Date Range')])
 
@@ -1756,4 +1765,4 @@ def layout_components(n):
 
 
 if __name__ == "__main__":
-    app.run_server(host = "0.0.0.0")
+    app.run_server(host = "0.0.0.0", debug = True)
