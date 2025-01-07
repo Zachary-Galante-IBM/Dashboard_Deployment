@@ -51,7 +51,7 @@ def get_item(bucket_name, item_name):
         print("Unable to retrieve file contents: {0}".format(e))
     if file:
         return file
-"""
+
 ######### FOR CLOUD DEPLOYMENT ########
 # getting the contents of the file from the COS
 client_data = get_item('oidash-app','All_2023_Data_PID_Info.csv')
@@ -105,6 +105,10 @@ november_data = get_item('oidash-app','November_24.csv')
 november_monthly_data = november_data['Body'].read()
 with open('November_24.csv','wb') as file:
     file.write(november_monthly_data)
+december_data = get_item('oidash-app','December_24.csv')
+december_monthly_data = december_data['Body'].read()
+with open('December_24.csv','wb') as file:
+    file.write(december_monthly_data)
 lifecycle_data_cloud = get_item('oidash-app','ibm_product_lifecycle_list_Oct_24.csv')
 lifecycle_data = lifecycle_data_cloud['Body'].read()
 with open('ibm_product_lifecycle_list_Oct_24.csv','wb') as file:
@@ -129,6 +133,7 @@ august_data_loaded = pd.read_csv('August_24.csv',  encoding='UTF-16', sep='\t',o
 september_data_loaded = pd.read_csv('September_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 october_data_loaded = pd.read_csv('October_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 november_data_loaded = pd.read_csv('November_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
+december_data_loaded = pd.read_csv('December_24.csv',  encoding='UTF-16', sep='\t',on_bad_lines='skip')
 # TODO: Change the loaded data date column to datetime
 jan_data_loaded['Date'] = pd.to_datetime(jan_data_loaded['Month'])
 feb_data_loaded['Date'] = pd.to_datetime(feb_data_loaded['Month'])
@@ -141,9 +146,10 @@ august_data_loaded['Date'] = pd.to_datetime(august_data_loaded['Month'])
 september_data_loaded['Date'] = pd.to_datetime(september_data_loaded['Month'])
 october_data_loaded['Date'] = pd.to_datetime(october_data_loaded['Month'])
 november_data_loaded['Date'] = pd.to_datetime(november_data_loaded['Month'])
+december_data_loaded['Date'] = pd.to_datetime(december_data_loaded['Month'])
 all_data['Date'] = pd.to_datetime(all_data['Month'])
 # TODO: Add the loaded data to be joined to the main DataFrame
-all_data = pd.concat([all_data, jan_data_loaded, feb_data_loaded, march_data_loaded, april_data_loaded, may_data_loaded, june_data_loaded, july_data_loaded, august_data_loaded, september_data_loaded, october_data_loaded, november_data_loaded])
+all_data = pd.concat([all_data, jan_data_loaded, feb_data_loaded, march_data_loaded, april_data_loaded, may_data_loaded, june_data_loaded, july_data_loaded, august_data_loaded, september_data_loaded, october_data_loaded, november_data_loaded, december_data_loaded])
 earliest_date = all_data['Date'].min() # earliest date 
 most_recent_date = all_data['Date'].max() # the most recent date 
 # merging the pidname info 
@@ -1765,4 +1771,4 @@ def layout_components(n):
 
 
 if __name__ == "__main__":
-    app.run_server(host = "0.0.0.0", debug = True)
+    app.run_server(host = "0.0.0.0")
