@@ -1,6 +1,6 @@
 flask
 requests
-dash
+dash==2.17.1
 pandas
 jupyter_dash
 dash_bootstrap_components
