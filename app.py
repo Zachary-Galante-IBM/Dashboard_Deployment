@@ -1720,7 +1720,7 @@ def layout_components(n):
             html.Br(),
             dcc.Loading(
                     [dcc.Graph(id='graph-one', style={'overflowX': 'scroll'})],
-                    overlay_style={"visibility":"visible", "opacity": .5, "backgroundColor": "white"},
+                    #overlay_style={"visibility":"visible", "opacity": .5, "backgroundColor": "white"},
                     custom_spinner=html.H2(["Please Wait: Graph is loading", dbc.Spinner(color="danger")])),
 
         ], className='six columns'),
@@ -1740,7 +1740,7 @@ def layout_components(n):
                 dbc.Button('Version ID', color="success", className=("m-1"), outline=True, id='Versions', n_clicks=0),
                 dcc.Loading(
                     [dcc.Graph(id='graph-two')],
-                    overlay_style={"visibility":"visible", "opacity": .5, "backgroundColor": "white"},
+                    #overlay_style={"visibility":"visible", "opacity": .5, "backgroundColor": "white"},
                     custom_spinner=html.H2(["Please Wait: Graph is loading", dbc.Spinner(color="danger")])),
         ], className='six columns'),
     ], className='row'),
@@ -1757,7 +1757,7 @@ def layout_components(n):
                 dbc.Button('Totals', color="success", className=("m-1"), outline=True, id='Totals-2', n_clicks=0),
                  dcc.Loading(
                     [dcc.Graph(id='graph-three')],
-                    overlay_style={"visibility":"visible", "opacity": .5, "backgroundColor": "white"},
+                    #overlay_style={"visibility":"visible", "opacity": .5, "backgroundColor": "white"},
                     custom_spinner=html.H2(["Please Wait: Graph is loading", dbc.Spinner(color="danger")])),
 
         ], className='six columns'),
