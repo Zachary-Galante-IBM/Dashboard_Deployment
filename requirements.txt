@@ -8,3 +8,5 @@ openpyxl
 dash_daq
 ibm-cos-sdk
 natsort
+wordcloud
+zipp
