@@ -20,19 +20,25 @@ import calendar
 import os
 cwd = os.getcwd()
 import json
+from io import BytesIO
 import re
+import io
 from auth_dash import AppIDAuthProviderDash
 from datetime import datetime
-#from cloud import WordCloud, STOPWORDS
+from wordcloud import WordCloud, STOPWORDS
 from flask import jsonify, send_file, Flask
 import base64
 from io import BytesIO
+import matplotlib.pyplot as plt
+import threading
+import zipfile
 #import client data
 #setting up the API with the COS
 # Constants for IBM COS values
 COS_ENDPOINT = "https://s3.us-east.cloud-object-storage.appdomain.cloud" # Current list avaiable at https://control.cloud-object-storage.cloud.ibm.com/v2/endpoints
 COS_API_KEY_ID = "IXlwNFSuZ9dl7CUr1LSlYs3gkBpwI2-fNdMCUne2Pb4C"
 COS_INSTANCE_CRN = "crn:v1:bluemix:public:cloud-object-storage:global:a/6003dba678e9a506528e0dc3dad11d75:b75750b4-68a2-4113-af62-16c1e6e10bca::" # eg "crn:v1:bluemix:public:cloud-object-storage:global:a/3bf0d9003xxxxxxxxxx1c3e97696b71c:d6f04d83-6c4f-4a62-a165-696756d63903::"
+
 # Create resource
 cos = ibm_boto3.resource("s3",
     ibm_api_key_id=COS_API_KEY_ID,
@@ -51,7 +57,7 @@ def get_item(bucket_name, item_name):
         print("Unable to retrieve file contents: {0}".format(e))
     if file:
         return file
-
+"""
 ######### FOR CLOUD DEPLOYMENT ########
 # getting the contents of the file from the COS
 client_data = get_item('oidash-app','All_2023_Data_PID_Info.csv')
@@ -114,11 +120,29 @@ lifecycle_data = lifecycle_data_cloud['Body'].read()
 with open('ibm_product_lifecycle_list_Oct_24.csv','wb') as file:
     file.write(lifecycle_data) 
 ########################################  """
-all_data = pd.read_csv('All_2023_Data_PID_Info.csv')
+
+### -- WORDCLOUD DEV ADD BACK FOR DEPLOYMENT
+lifecycle_data_cloud = get_item('oidash-app','ibm_product_lifecycle_list_Oct_24.csv')
+lifecycle_data = lifecycle_data_cloud['Body'].read()
+with open('ibm_product_lifecycle_list_Oct_24.csv','wb') as file:
+    file.write(lifecycle_data) 
+
+
+
+pid_info_2023 = get_item('oidash-app','All_2023_Data_PID_Info.csv')
+pid_info_2023_new = pid_info_2023['Body'].read()
+with open('All_2023_Data_PID_Info.csv','wb') as file:
+    file.write(pid_info_2023_new)
+
+
+
+all_data = pd.read_csv('All_2023_Data_PID_Info.csv', usecols = ['pidname', 'Product Name']  )
+
 # copy of the dataframe to get the pidname info 
 product_name_info  = all_data[all_data['pidname'].notna()]
 product_name_info = product_name_info[['Product Name', 'pidname']]
 pidname_mapping_table = product_name_info.drop_duplicates(subset= 'Product Name')
+"""
 cloud_columns = list(all_data.columns)
 if 'Unnamed: 0' in cloud_columns:
     all_data.drop(columns = ['Unnamed: 0'], inplace = True)
@@ -150,12 +174,36 @@ december_data_loaded['Date'] = pd.to_datetime(december_data_loaded['Month'])
 all_data['Date'] = pd.to_datetime(all_data['Month'])
 # TODO: Add the loaded data to be joined to the main DataFrame
 all_data = pd.concat([all_data, jan_data_loaded, feb_data_loaded, march_data_loaded, april_data_loaded, may_data_loaded, june_data_loaded, july_data_loaded, august_data_loaded, september_data_loaded, october_data_loaded, november_data_loaded, december_data_loaded])
+"""
+
+
+merged_2024 = get_item('oidash-app','Merged_data_2024.csv')
+merged_2024_new = merged_2024['Body'].read()
+with open('Merged_data_2024.csv','wb') as file:
+    file.write(merged_2024_new)
+
+jan25_merged = get_item('oidash-app','Jan25_merged.csv')
+jan25_merged_new = jan25_merged['Body'].read()
+with open('Jan25_merged.csv','wb') as file:
+    file.write(jan25_merged_new)
+
+all_data_24 = pd.read_csv('Merged_data_2024.csv')
+all_data_24.rename(columns= {'Global Buying Group Name_x' : 'Global Buying Group Name', 'Product_x' : 'Product' }, inplace= True)
+all_data_24['Date'] = pd.to_datetime(all_data_24['Month'])
+all_data_24.drop(columns = ['Unnamed: 0'], inplace = True)
+# adding jan 25
+jan_25_merged = pd.read_csv('Jan25_merged.csv')
+jan_25_merged.rename(columns= {'Global Buying Group Name_x' : 'Global Buying Group Name', 'Product_x' : 'Product' }, inplace= True)
+jan_25_merged['Date'] = pd.to_datetime(jan_25_merged['Month'])
+#jan_25_merged.drop(columns = ['Unnamed: 0'], inplace = True)
+
+all_data = pd.concat([all_data_24, jan_25_merged])
 earliest_date = all_data['Date'].min() # earliest date 
 most_recent_date = all_data['Date'].max() # the most recent date 
 # merging the pidname info 
 all_data = all_data.merge(pidname_mapping_table, how = 'left', on  = 'Product Name')
-all_data.drop(columns = ['pidname_x'], inplace = True )
-all_data.rename(columns = {'pidname_y' : 'pidname'} ,inplace = True)
+#all_data.drop(columns = ['pidname_x'], inplace = True )
+#all_data.rename(columns = {'pidname_y' : 'pidname'} ,inplace = True)
 # joining the pid info back to the new data 
 # get the dictionaries and write them to JSON files
 red = get_item('oidash-app','Red_dict_October_24_final.json')
@@ -770,12 +818,21 @@ def graph_data_prep(selected_client, data, graph_num,  start_interval = None, pr
 
         client_defects_data = graph2_merged_data
 
-    return client_defects_data        
+    return client_defects_data
+stopwords = set(STOPWORDS)
+
+def plot_wordcloud(data, selected_client, selected_product):
+    wc = WordCloud(stopwords = stopwords, background_color='white', width=480, height=360)
+    filtered_by_client = data[data['Global Buying Group Name'] == selected_client]
+    filtered_by_product = filtered_by_client[filtered_by_client['Product'] == selected_product]
+    filtered_by_product.dropna(subset = ['Concept'], inplace = True)
+    wc.generate(filtered_by_product['Concept'].to_string(index = False).replace('\n', ''))
+    return wc.to_image()
 #==========================================================================================================================================
 #graph creation
 
 geo_dropdown = dcc.Dropdown(options=all_data['Global Buying Group Name'].unique(),value='METLIFE')
-
+progress_value = 0
 
 
 @app.callback(Output('CMR_Dropdown_Div', 'children'),
@@ -1306,19 +1363,123 @@ def update_graph3(selected_client, cmr_dropdown_selections, click,sort_button, t
 
     return fig3
 
-"""@app.callback(
-    Output(component_id='client_name', component_property= 'data' ),#graph shown in HTML
-    Input(component_id=geo_dropdown, component_property='value'))#client dropdown selection)
+# --- Wordclouds
 
-def produce_wordcloud(selected_client):
-    client_data = all_data[all_data['Global Buying Group Name'] == selected_client]
-    stopwords = set(STOPWORDS)
-    wordcloud = WordCloud(width = 800, height = 800,
-                background_color ='white',
-                stopwords = stopwords,
-                min_font_size = 10).generate(client_data['Product Name'].to_string(index = False).replace('\n', ''))
-    wordcloud_file = wordcloud.to_file('assets/wordcloud2.png')
-    return dcc.send_file(wordcloud_file, )"""
+wordcloud_submit_button = dbc.Button('Submit Products',   id='wordcloud_submit_button', n_clicks=0, className=("m-1"))
+wordcloud_clear_button = dbc.Button('Clear Products',   id='wordcloud_clear_button', n_clicks=0, className=("m-1"))
+all_wordclouds = dbc.Button('Download Wordclouds For All Products',   id='all_wordclouds_button', n_clicks=0, className=("m-1"))
+
+# produces the filtered product dropdown
+@app.callback(Output('Filtered_Products_Div', 'children'),
+              Input(component_id=geo_dropdown, component_property='value'))
+def update_product_data(selected_client):
+    fltered_product_data = all_data[all_data['Global Buying Group Name'] == selected_client]
+    products_dropdown = dcc.Dropdown(options=fltered_product_data['Product'].unique(), multi = True, id = 'product_dropdown', placeholder= 'Select Products For Wordclouds')
+    return products_dropdown
+# produces the word clouds
+@app.callback(
+    Output(component_id='wordcloud_tabs', component_property='children'),#graph shown in HTML
+    Input(component_id=geo_dropdown, component_property='value'), # client name selecton
+    Input('wordcloud_submit_button', 'n_clicks'), # used to submit the products for wordclouds
+    Input('wordcloud_clear_button', 'n_clicks'), # clears the products selected for wordclouds
+    State('product_dropdown', 'value'), 
+    State('wordcloud_tabs', 'children'),
+    prevent_initial_call = True
+)
+
+def add_tab(client_selection, submit_button_clicks, clear_button_clicks, product_names, current_tabs):
+    if (submit_button_clicks > 0) & (clear_button_clicks == 0):
+        for product in product_names:
+            img = BytesIO()
+            plot_wordcloud(data = all_data, selected_client= client_selection, selected_product = product).save(img, format = 'PNG')
+            encoded_image = base64.b64encode(img.getvalue()).decode()
+            # Add a new tab with a unique value
+            new_tab_value = f'tab-{product}'
+            if product not in current_tabs:
+                current_tabs.append(
+                    dcc.Tab(label=product, value=new_tab_value, 
+                            children = [html.Div([html.Img(src =f"data:image/png;base64,{encoded_image}")])])
+                )
+        submit_button_clicks = 0 
+    elif clear_button_clicks > 0:
+        clear_button_clicks = 0 
+        current_tabs.clear()
+    return current_tabs
+
+# Callbacks and functions to download all wordclouds for a client
+
+def plot_all_wordclouds(data, selected_client, selected_product):
+    """Used to create wordclouds when the button to generate wordclouds 
+    for all products is activated"""
+    wc = WordCloud(stopwords = stopwords, background_color='white', width=600, height=500)
+    filtered_by_product = data[data['Product'] == selected_product]
+    filtered_by_product.dropna(subset = ['Concept'], inplace = True)
+    wordcloud = wc.generate(filtered_by_product['Concept'].to_string(index = False).replace('\n', ''))
+    wordcloud.to_file(f'{selected_client}/{selected_product}.png')
+    return wc.to_image()
+all_data['Product'] = all_data['Product'].str.replace('/', '-')
+
+@app.callback(
+    Output('download-zip', 'data'),
+    Input('all_wordclouds_button', 'n_clicks'),
+    Input(geo_dropdown, 'value'),
+    prevent_initial_call = True
+)
+
+def generate_zip(n_clicks, customer_selection):
+    global progress_value
+    if 'all_wordclouds_button' == ctx.triggered_id: 
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            # Create a text file in a folder inside the ZIP
+            customer_data = all_data[all_data['Global Buying Group Name'] == customer_selection]
+            unique_products = list(set(customer_data['Product']))
+            progress_interval = 100 / len(unique_products)
+            for product in unique_products:
+                filtered_product_data = customer_data[customer_data['Product'] == product]
+                filtered_product_data.dropna(subset = ['Concept'], inplace = True)
+                
+                #if filtered_product_data.shape[0] < 3:
+                    #continue
+                if filtered_product_data.shape[0] >= 3:
+                    wc = WordCloud(stopwords = stopwords, background_color='white', width=600, height=500)
+                    wordcloud = wc.generate(filtered_product_data['Concept'].to_string(index = False).replace('\n', ''))
+                    wordcloud.to_file(f'{product}.png')
+                    # Save Word Cloud to a BytesIO buffer
+                    img_buffer = io.BytesIO()
+                    
+                    # Move buffer to start
+                    img_buffer.seek(0)
+                    # Save the word cloud image inside a directory in the ZIP
+                    zip_file.writestr(f"{customer_selection}/{product}.png", img_buffer.getvalue())
+                    zip_buffer.seek(0)
+                progress_value += progress_interval
+        return dcc.send_bytes(zip_buffer.getvalue(), "wordcloud_zip.zip")
+    
+@app.callback(
+    [Output("interval", "disabled"),
+     Output("progress-bar", "value")],
+    [Input("all_wordclouds_button", "n_clicks"),
+     Input("interval", "n_intervals")],
+    prevent_initial_call=True
+)
+def update_progress(n_clicks, n_intervals):
+    global progress_value
+    if n_clicks is None:
+        return dash.no_update
+    if n_intervals == 0:
+        # Start the loop in a separate thread
+        progress_value = 0  # Reset progress
+        thread = threading.Thread(target=generate_zip)
+        thread.start()
+        return False, progress_value  # Enable the interval and set progress value to 0
+    if progress_value >= 100:
+        return True, 100  # Stop the interval when reaching 100%
+    return False, progress_value  # Continue the progress update"""
+
+
+
+
 #==========================================================================================================================================
 #download button
 graph_one = os.path.join(os.getcwd(), 'graph-one.html')
@@ -1443,24 +1604,13 @@ def get_custom_text_file(n_clicks, CMR_selections, client_dropdown, product_grou
     return text_file
     
 
-
-
-
-
-
-
-
-
-
-
-
-
 #==========================================================================================================================================
 #grab client names for titles
 @app.callback(
     Output('title1', 'children'),
     Output('title2', 'children'),
     Output('title3', 'children'),
+    Output('title4', 'children'),
     Input(component_id=geo_dropdown, component_property='value')
 )
 def update_output(selected_client):
@@ -1471,7 +1621,8 @@ def update_output(selected_client):
     title1 = 'Open Tickets by Product Severity for Summary of ' + selected_client
     title2 = 'Open Tickets by Product Version for Summary of ' + selected_client
     title3 = 'Proportion of Defects to Case Activity by Product for Summary of ' + selected_client
-    return title1, title2, title3
+    title4 = 'Case Concept Wordclouds for ' + selected_client
+    return title1, title2, title3, title4
 
 
 
@@ -1628,7 +1779,7 @@ def return_parameter_labels(button_6months, button4_3months, button_1year, butto
 FA_icon = html.I(className="fa-solid fa-cloud-arrow-down me-2")
 subtitle = 'Data from March 2022 through June 2023'
 disclaimer = 'Disclaimer: Products without version information may appear in graphs 1 and 3, but not graph 2'
-
+wordcloud_disclaimer = 'Disclaimer: Any product with less than 3 tickets will not generate a wordcloud'
 date_dropdown = html.Div(
     [
         dcc.Dropdown(
@@ -1762,7 +1913,25 @@ def layout_components(n):
 
         ], className='six columns'),
     ], className='row'),
-
+    
+    # Div that will contain the word clouds
+    html.Div([ 
+        html.Div([html.Br(),
+                  html.H3(id='title4'),
+                  html.H4(wordcloud_disclaimer),
+                  html.H3(id = 'wordcloud_title'),
+                  all_wordclouds,
+                  html.Div(id='Filtered_Products_Div'),
+                  dcc.Download(id="download-zip"),
+                  dbc.Progress(id="progress-bar", label = 'Wordcloud Download Progress', value=0, striped=True, animated=True, className="mb-3"),
+                  dcc.Interval(id="interval", interval=500, n_intervals=0, disabled=True),
+                  html.Br(), html.Br(),
+                  wordcloud_submit_button,
+                  wordcloud_clear_button,
+                  dcc.Tabs(id='wordcloud_tabs', value='tab-1', children = []), ], className='six columns'),
+                
+    ], className= 'row'
+)
 
 
     ]
@@ -1771,4 +1940,4 @@ def layout_components(n):
 
 
 if __name__ == "__main__":
-    app.run_server(host = "0.0.0.0")
+    app.run_server(host = "0.0.0.0", debug = False)
