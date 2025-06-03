@@ -203,6 +203,11 @@ april25_merged_new = april25_merged['Body'].read()
 with open('April_25_merged.csv','wb') as file:
     file.write(april25_merged_new)
 
+may25_merged = get_item('oidash-app','May_25_merged.csv')
+may25_merged_new = may25_merged['Body'].read()
+with open('May_25_merged.csv','wb') as file:
+    file.write(may25_merged_new)
+
 all_data_24 = pd.read_csv('Merged_data_2024.csv')
 all_data_24.rename(columns= {'Global Buying Group Name_x' : 'Global Buying Group Name', 'Product_x' : 'Product' }, inplace= True)
 all_data_24['Date'] = pd.to_datetime(all_data_24['Month'])
@@ -223,7 +228,13 @@ april_25_merged = pd.read_csv('April_25_merged.csv')
 april_25_merged.rename(columns= {'Global Buying Group Name_x' : 'Global Buying Group Name', 'Product_x' : 'Product' }, inplace= True)
 april_25_merged['Date'] = pd.to_datetime(april_25_merged['Month'])
 
-all_data = pd.concat([all_data_24, jan_25_merged, feb_25_merged, march_25_merged, april_25_merged])
+may_25_merged = pd.read_csv('May_25_merged.csv')
+may_25_merged.rename(columns= {'Global Buying Group Name_x' : 'Global Buying Group Name', 'Product_x' : 'Product' }, inplace= True)
+may_25_merged['Date'] = pd.to_datetime(may_25_merged['Month'])
+
+
+
+all_data = pd.concat([all_data_24, jan_25_merged, feb_25_merged, march_25_merged, april_25_merged, may_25_merged])
 earliest_date = all_data['Date'].min() # earliest date 
 most_recent_date = all_data['Date'].max() # the most recent date 
 # merging the pidname info 
