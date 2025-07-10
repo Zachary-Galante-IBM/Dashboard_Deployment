@@ -103,25 +103,36 @@ class AppIDAuthProvider:
     def _is_auth_active(cls):
         if cls.AUTH_ERRMSG in session:
             return False, session.pop(cls.AUTH_ERRMSG)
-        elif cls.APPID_USER_TOKEN in session:
-            token = session[cls.APPID_USER_TOKEN]
-            introspect_endpoint = cls.OAUTH_SERVER_URL + "/introspect"
-            resp = requests.post(introspect_endpoint,
-                                 data = {"token": token},
-                                 auth = HTTPBasicAuth(cls.CLIENT_ID, cls.CLIENT_SECRET))
+        token = session.get(cls.APPID_USER_TOKEN)
+        if not token:
+            session.pop(cls.APPID_USER_ROLES, None)
+            return False, "Missing access_token in session"
+        introspect_endpoint = cls.OAUTH_SERVER_URL + "/introspect"
+        resp = requests.post(
+            introspect_endpoint,
+            data={"token": token},
+            auth=HTTPBasicAuth(cls.CLIENT_ID, cls.CLIENT_SECRET)
+        )
+        try:
             resp_json = resp.json()
-            if "active" in resp_json and resp_json["active"]:
-                return True, ""
-            else:
-                session.pop(cls.APPID_USER_TOKEN, None)
-                session.pop(cls.APPID_USER_ROLES, None)
-                err_msg = ""
-                if "error_description" in resp_json:
-                    err_msg = "Could not introspect user token, {}".format(resp_json["error_description"])
-                    logging.error(err_msg)
-                return False, err_msg
+        except Exception as e:
+            return False, f"Error parsing response: {e}"
+        if resp_json.get("active"):
+            return True, None
         else:
-            return False, ""
+            session.pop(cls.APPID_USER_TOKEN, None)
+            session.pop(cls.APPID_USER_ROLES, None)
+            err_msg = resp_json.get("error_description", "Inactive token")
+            return False, err_msg
+        
+
+
+
+
+
+
+
+        
 
     @classmethod
     def start_auth(cls):
