@@ -32,6 +32,7 @@ from io import BytesIO
 import matplotlib.pyplot as plt
 import threading
 import zipfile
+from PIL import Image
 #import client data
 #setting up the API with the COS
 # Constants for IBM COS values
@@ -223,6 +224,11 @@ august25_merged_new = august25_merged['Body'].read()
 with open('August_25_merged.csv','wb') as file:
     file.write(august25_merged_new)
 
+september25_merged = get_item('oidash-app','September_25_merged.csv')
+september25_merged_new = september25_merged['Body'].read()
+with open('September_25_merged.csv','wb') as file:
+    file.write(september25_merged_new)
+
 all_data_24 = pd.read_csv('Merged_data_2024.csv')
 all_data_24.rename(columns= {'Global Buying Group Name_x' : 'Global Buying Group Name', 'Product_x' : 'Product' }, inplace= True)
 all_data_24['Date'] = pd.to_datetime(all_data_24['Month'])
@@ -259,8 +265,12 @@ august_25_merged = pd.read_csv('August_25_merged.csv')
 august_25_merged.rename(columns= {'Global Buying Group Name_x' : 'Global Buying Group Name', 'Product_x' : 'Product' }, inplace= True)
 august_25_merged['Date'] = pd.to_datetime(august_25_merged['Month'])
 
+september_25_merged = pd.read_csv('September_25_merged.csv')
+september_25_merged.rename(columns= {'Global Buying Group Name_x' : 'Global Buying Group Name', 'Product_x' : 'Product' }, inplace= True)
+september_25_merged['Date'] = pd.to_datetime(september_25_merged['Month'])
 
-all_data = pd.concat([all_data_24, jan_25_merged, feb_25_merged, march_25_merged, april_25_merged, may_25_merged, june_25_merged, july_25_merged, august_25_merged])
+
+all_data = pd.concat([all_data_24, jan_25_merged, feb_25_merged, march_25_merged, april_25_merged, may_25_merged, june_25_merged, july_25_merged, august_25_merged, september_25_merged])
 earliest_date = all_data['Date'].min() # earliest date 
 most_recent_date = all_data['Date'].max() # the most recent date 
 # merging the pidname info 
@@ -1485,38 +1495,37 @@ all_data['Product'] = all_data['Product'].str.replace('/', '-')
 @app.callback(
     Output('download-zip', 'data'),
     Input('all_wordclouds_button', 'n_clicks'),
-    Input(geo_dropdown, 'value'),
+    Input(component_id=geo_dropdown, component_property='value'),
     prevent_initial_call = True
 )
 
 def generate_zip(n_clicks, customer_selection):
     global progress_value
-    if 'all_wordclouds_button' == ctx.triggered_id: 
+    if ('all_wordclouds_button' == ctx.triggered_id) and (n_clicks > 0):
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-            # Create a text file in a folder inside the ZIP
             customer_data = all_data[all_data['Global Buying Group Name'] == customer_selection]
             unique_products = list(set(customer_data['Product']))
             progress_interval = 100 / len(unique_products)
+
             for product in unique_products:
-                filtered_product_data = customer_data[customer_data['Product'] == product]
-                filtered_product_data.dropna(subset = ['Concept'], inplace = True)
-                
-                #if filtered_product_data.shape[0] < 3:
-                    #continue
+                filtered_product_data = customer_data[customer_data['Product'] == product].dropna(subset=['Concept'])
+
                 if filtered_product_data.shape[0] >= 3:
-                    wc = WordCloud(stopwords = stopwords, background_color='white', width=600, height=500)
-                    wordcloud = wc.generate(filtered_product_data['Concept'].to_string(index = False).replace('\n', ''))
-                    wordcloud.to_file(f'{product}.png')
-                    # Save Word Cloud to a BytesIO buffer
+                    wc = WordCloud(stopwords=stopwords, background_color='white', width=600, height=500)
+                    wordcloud = wc.generate(
+                        filtered_product_data['Concept'].to_string(index=False).replace('\n', '')
+                    )
+
                     img_buffer = io.BytesIO()
-                    
-                    # Move buffer to start
+                    wordcloud.to_image().save(img_buffer, format="PNG")
                     img_buffer.seek(0)
-                    # Save the word cloud image inside a directory in the ZIP
+
                     zip_file.writestr(f"{customer_selection}/{product}.png", img_buffer.getvalue())
-                    zip_buffer.seek(0)
+
                 progress_value += progress_interval
+
+        zip_buffer.seek(0)
         return dcc.send_bytes(zip_buffer.getvalue(), "wordcloud_zip.zip")
     
 @app.callback(
