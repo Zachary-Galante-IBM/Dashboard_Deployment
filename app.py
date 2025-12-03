@@ -229,6 +229,19 @@ september25_merged_new = september25_merged['Body'].read()
 with open('September_25_merged.csv','wb') as file:
     file.write(september25_merged_new)
 
+october25_merged = get_item('oidash-app','October_25_merged.csv')
+october25_merged_new = october25_merged['Body'].read()
+with open('October_25_merged.csv','wb') as file:
+    file.write(october25_merged_new)
+
+november25_merged = get_item('oidash-app','November_25_merged.csv')
+november25_merged_new = november25_merged['Body'].read()
+with open('November_25_merged.csv','wb') as file:
+    file.write(november25_merged_new)
+
+
+
+
 all_data_24 = pd.read_csv('Merged_data_2024.csv')
 all_data_24.rename(columns= {'Global Buying Group Name_x' : 'Global Buying Group Name', 'Product_x' : 'Product' }, inplace= True)
 all_data_24['Date'] = pd.to_datetime(all_data_24['Month'])
@@ -269,8 +282,17 @@ september_25_merged = pd.read_csv('September_25_merged.csv')
 september_25_merged.rename(columns= {'Global Buying Group Name_x' : 'Global Buying Group Name', 'Product_x' : 'Product' }, inplace= True)
 september_25_merged['Date'] = pd.to_datetime(september_25_merged['Month'])
 
+october_25_merged = pd.read_csv('October_25_merged.csv')
+october_25_merged.rename(columns= {'Global Buying Group Name_x' : 'Global Buying Group Name', 'Product_x' : 'Product' }, inplace= True)
+october_25_merged['Date'] = pd.to_datetime(october_25_merged['Month'])
 
-all_data = pd.concat([all_data_24, jan_25_merged, feb_25_merged, march_25_merged, april_25_merged, may_25_merged, june_25_merged, july_25_merged, august_25_merged, september_25_merged])
+november_25_merged = pd.read_csv('November_25_merged.csv')
+november_25_merged.rename(columns= {'Global Buying Group Name_x' : 'Global Buying Group Name', 'Product_x' : 'Product' }, inplace= True)
+november_25_merged['Date'] = pd.to_datetime(november_25_merged['Month'])
+
+
+
+all_data = pd.concat([all_data_24, jan_25_merged, feb_25_merged, march_25_merged, april_25_merged, may_25_merged, june_25_merged, july_25_merged, august_25_merged, september_25_merged, october_25_merged, november_25_merged])
 earliest_date = all_data['Date'].min() # earliest date 
 most_recent_date = all_data['Date'].max() # the most recent date 
 # merging the pidname info 
