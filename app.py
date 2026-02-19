@@ -239,6 +239,16 @@ november25_merged_new = november25_merged['Body'].read()
 with open('November_25_merged.csv','wb') as file:
     file.write(november25_merged_new)
 
+december25_merged = get_item('oidash-app','December_25_merged.csv')
+december25_merged_new = december25_merged['Body'].read()
+with open('December_25_merged.csv','wb') as file:
+    file.write(december25_merged_new)
+
+january26_merged = get_item('oidash-app','January_26_merged.csv')
+january26_merged_new = january26_merged['Body'].read()
+with open('January_26_merged.csv','wb') as file:
+    file.write(january26_merged_new)
+
 
 
 
@@ -290,9 +300,15 @@ november_25_merged = pd.read_csv('November_25_merged.csv')
 november_25_merged.rename(columns= {'Global Buying Group Name_x' : 'Global Buying Group Name', 'Product_x' : 'Product' }, inplace= True)
 november_25_merged['Date'] = pd.to_datetime(november_25_merged['Month'])
 
+december_25_merged = pd.read_csv('December_25_merged.csv')
+december_25_merged.rename(columns= {'Global Buying Group Name_x' : 'Global Buying Group Name', 'Product_x' : 'Product' }, inplace= True)
+december_25_merged['Date'] = pd.to_datetime(december_25_merged['Month'])
 
+january_26_merged = pd.read_csv('January_26_merged.csv')
+january_26_merged.rename(columns= {'Global Buying Group Name_x' : 'Global Buying Group Name', 'Product_x' : 'Product' }, inplace= True)
+january_26_merged['Date'] = pd.to_datetime(january_26_merged['Month'])
 
-all_data = pd.concat([all_data_24, jan_25_merged, feb_25_merged, march_25_merged, april_25_merged, may_25_merged, june_25_merged, july_25_merged, august_25_merged, september_25_merged, october_25_merged, november_25_merged])
+all_data = pd.concat([all_data_24, jan_25_merged, feb_25_merged, march_25_merged, april_25_merged, may_25_merged, june_25_merged, july_25_merged, august_25_merged, september_25_merged, october_25_merged, november_25_merged, december_25_merged, january_26_merged])
 earliest_date = all_data['Date'].min() # earliest date 
 most_recent_date = all_data['Date'].max() # the most recent date 
 # merging the pidname info 
